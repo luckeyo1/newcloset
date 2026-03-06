@@ -4,12 +4,17 @@
 ## **Project Overview**
 
 This project is a web application that allows users to create a digital version of their real-world closet. Users can upload photos of their clothing items, add details and descriptions, and view their entire collection in a visually appealing gallery. The goal is to provide a simple and intuitive way for users to manage and showcase their wardrobe.
-
-## **Core Features & Design (v1)**
+## **Core Features & Design (v2)**
 
 ### **Layout & Style**
 
-*   **Responsive Design:** The application will be fully responsive, working seamlessly on both desktop and mobile devices.
+*   **Dark/Light Mode:** Added a theme toggle feature.
+    *   **Default Theme:** Dark mode (for a premium look).
+    *   **Light Mode:** Accessible via a sun/moon toggle button in the header.
+    *   **Persistence:** Theme preference is saved in `localStorage`.
+    *   **Component Sync:** The `<closet-item>` Web Component automatically syncs with the current theme using CSS variables.
+*   **Responsive Design:** The application remains fully responsive.
+...
 *   **Modern Aesthetics:** It will feature a clean, modern design with a focus on visual balance and intuitive user experience.
 *   **Color Palette:** A vibrant and energetic color palette will be used to create a welcoming look and feel.
 *   **Typography:** Expressive typography will be used to create a clear visual hierarchy and emphasize key information.
