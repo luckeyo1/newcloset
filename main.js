@@ -1,4 +1,3 @@
-
 // ====================================================================
 // ** Web Component: <closet-item> **
 // ====================================================================
@@ -17,52 +16,79 @@ class ClosetItem extends HTMLElement {
             <style>
                 :host {
                     display: block;
+                    animation: fadeIn 0.5s ease-out;
                 }
-                .card {
-                    background-color: var(--surface-color, oklch(35% 0.05 240));
-                    border-radius: 12px;
-                    box-shadow: 0 8px 25px var(--shadow-color, oklch(20% 0.05 240 / 40%));
-                    overflow: hidden;
-                    transition: all 0.3s ease;
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .product-card {
+                    display: flex;
+                    flex-direction: column;
                     cursor: pointer;
-                    border: 1px solid var(--primary-color, transparent);
+                    transition: 0.3s;
                 }
-                .card:hover {
-                    transform: translateY(-5px) scale(1.02);
-                    box-shadow: 0 12px 35px var(--glow-color, oklch(20% 0.05 240 / 60%));
-                }
-                .card-image {
+                .image-container {
+                    position: relative;
                     width: 100%;
-                    height: 200px;
+                    padding-bottom: 125%; /* 4:5 Aspect Ratio - Trendy for fashion */
+                    background-color: #f1f1f1;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    margin-bottom: 12px;
+                }
+                .image-container img {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
                     object-fit: cover;
-                    display: block;
+                    transition: 0.5s;
                 }
-                .card-content {
-                    padding: 1rem;
+                .product-card:hover img {
+                    transform: scale(1.05);
                 }
-                .card-name {
-                    font-size: 1.1rem;
-                    font-weight: bold;
-                    margin: 0 0 0.5rem 0;
+                .info {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                }
+                .category {
+                    font-size: 0.8rem;
+                    font-weight: 500;
+                    color: #707070;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+                .name {
+                    font-size: 0.95rem;
+                    font-weight: 600;
+                    color: var(--text-main, #1a1a1a);
                     white-space: nowrap;
                     overflow: hidden;
                     text-overflow: ellipsis;
-                    color: var(--text-color, oklch(98% 0.01 240));
                 }
-                .card-category {
-                    font-size: 0.9rem;
-                    color: var(--secondary-color, oklch(75% 0.2 240));
-                    background-color: var(--background-color, oklch(25% 0.05 240 / 80%));
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 6px;
-                    display: inline-block;
+                .action-btn {
+                    margin-top: 8px;
+                    font-size: 0.75rem;
+                    color: #999;
+                    text-decoration: underline;
+                    background: none;
+                    border: none;
+                    padding: 0;
+                    cursor: pointer;
+                    width: fit-content;
                 }
             </style>
-            <div class="card">
-                <img src="${imageSrc}" alt="${name}" class="card-image">
-                <div class="card-content">
-                    <h3 class="card-name">${name}</h3>
-                    <p class="card-category">${category}</p>
+            <div class="product-card">
+                <div class="image-container">
+                    <img src="${imageSrc}" alt="${name}">
+                </div>
+                <div class="info">
+                    <span class="category">${category}</span>
+                    <span class="name">${name}</span>
+                    <button class="action-btn">상세보기</button>
                 </div>
             </div>
         `;
@@ -77,12 +103,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('add-item-form');
     const gallery = document.getElementById('closet-gallery');
     const themeToggle = document.getElementById('theme-toggle');
-    const STORAGE_KEY = 'virtualClosetItems';
-    const THEME_KEY = 'closetTheme';
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('item-image');
+    
+    const STORAGE_KEY = 'virtualClosetItems_v2';
+    const THEME_KEY = 'closetTheme_v2';
 
-    // --- 0. Theme Handling ---
+    // --- Theme Handling ---
     const initTheme = () => {
-        const savedTheme = localStorage.getItem(THEME_KEY) || 'dark';
+        const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
         if (savedTheme === 'light') {
             document.body.classList.add('light-mode');
             updateThemeIcon('light');
@@ -107,73 +136,87 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initTheme();
 
-    // --- 1. Load existing items from localStorage ---
+    // --- Drag & Drop Handling ---
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = 'var(--accent-color)';
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.style.borderColor = 'var(--border-color)';
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileInput.files = e.dataTransfer.files;
+        handleFileSelect(e.dataTransfer.files[0]);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        handleFileSelect(e.target.files[0]);
+    });
+
+    const handleFileSelect = (file) => {
+        if (file) {
+            dropZone.innerHTML = `<i class="fa-solid fa-check"></i><p>${file.name} 선택됨</p>`;
+        }
+    };
+
+    // --- Load Items ---
     const loadItems = () => {
         const items = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-        gallery.innerHTML = ''; // Clear gallery before loading
+        gallery.innerHTML = '';
         if (items.length === 0) {
-            gallery.innerHTML = '<p style="color: oklch(75% 0.2 240);">Your closet is empty. Add your first item!</p>';
+            gallery.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #999;">옷장이 비어있습니다. 첫 번째 아이템을 추가해보세요.</div>';
+            return;
         }
         items.forEach(itemData => {
-            const itemElement = createClosetItem(itemData);
-            gallery.appendChild(itemElement);
+            gallery.appendChild(createClosetItem(itemData));
         });
     };
 
-    // --- 2. Handle form submission ---
+    // --- Form Submission ---
     form.addEventListener('submit', (e) => {
         e.preventDefault();
 
         const nameInput = document.getElementById('item-name');
         const categoryInput = document.getElementById('item-category');
-        const imageInput = document.getElementById('item-image');
+        const file = fileInput.files[0];
 
-        const file = imageInput.files[0];
-        if (!file) {
-            alert('Please select an image file.');
-            return;
-        }
+        if (!file) return alert('이미지를 선택해주세요.');
 
         const reader = new FileReader();
         reader.onloadend = () => {
             const newItemData = {
-                id: Date.now(), // Simple unique ID
+                id: Date.now(),
                 name: nameInput.value,
                 category: categoryInput.value,
-                imageSrc: reader.result // Base64 encoded image string
+                imageSrc: reader.result
             };
 
             saveItem(newItemData);
-            const newItemElement = createClosetItem(newItemData);
-            
-            // If it was the first item, remove the "empty" message
-            if (gallery.querySelector('p')) {
-                gallery.innerHTML = '';
-            }
-            gallery.appendChild(newItemElement);
-
+            loadItems();
             form.reset();
+            dropZone.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i><p>클릭하거나 이미지를 드래그하세요</p>`;
         };
         reader.readAsDataURL(file);
     });
 
-    // --- 3. Helper to create a <closet-item> element ---
     const createClosetItem = (itemData) => {
         const item = document.createElement('closet-item');
         item.setAttribute('name', itemData.name);
         item.setAttribute('category', itemData.category);
         item.setAttribute('image-src', itemData.imageSrc);
-        item.dataset.id = itemData.id;
         return item;
     };
 
-    // --- 4. Helper to save an item to localStorage ---
     const saveItem = (itemData) => {
         const items = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-        items.push(itemData);
+        items.unshift(itemData); // 최신 항목이 위로
         localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     };
 
-    // --- Initial Load ---
     loadItems();
 });
