@@ -1,48 +1,34 @@
+# **Project Blueprint: My Virtual Closet (AI Enhanced)**
 
-# Blueprint: My Virtual Closet
+## **1. Project Overview**
+A modern, AI-powered digital closet application that allows users to upload, categorize, and manage their clothing items. The app uses machine learning to automatically suggest categories based on uploaded images.
 
-## **Project Overview**
+## **2. Key Features**
+- **AI-Powered Categorization:** Uses TensorFlow.js (MobileNet) to analyze uploaded images and suggest categories (Top, Bottom, Outer, etc.).
+- **Digital Wardrobe Management:** Save items to local storage with names, categories, and images.
+- **Responsive & Modern UI:** A "premium" minimalist design using CSS Container Queries and modern color spaces.
+- **Dark/Light Mode:** Seamless theme switching.
+- **Web Components:** Encapsulated UI elements for clean and maintainable code.
+- **Firebase Deployment:** Hosted on Firebase for global access.
 
-This project is a web application that allows users to create a digital version of their real-world closet. Users can upload photos of their clothing items, add details and descriptions, and view their entire collection in a visually appealing gallery. The goal is to provide a simple and intuitive way for users to manage and showcase their wardrobe.
-## **Core Features & Design (v2)**
+## **3. Technology Stack**
+- **Frontend:** HTML5, CSS3 (Modern Baseline), Vanilla JavaScript (ES Modules).
+- **AI/ML:** TensorFlow.js + MobileNet model.
+- **Icons:** Font Awesome.
+- **Fonts:** Pretendard (Korean optimized).
+- **Storage:** Browser `localStorage`.
+- **Hosting:** Firebase Hosting.
 
-### **Layout & Style**
+## **4. Planned Enhancements (Current Phase)**
+- [ ] **AI Integration:** Add TensorFlow.js to `index.html` and implement classification logic in `main.js`.
+- [ ] **Instant Preview:** Show the uploaded image immediately in the drop zone.
+- [ ] **Auto-Categorization:** Automatically select the category dropdown based on AI results.
+- [ ] **UI Polish:** Add subtle textures, better shadows, and improved layout responsiveness.
+- [ ] **Firebase Setup:** Create `.idx/mcp.json` for Firebase tools and initialize hosting.
 
-*   **Dark/Light Mode:** Added a theme toggle feature.
-    *   **Default Theme:** Dark mode (for a premium look).
-    *   **Light Mode:** Accessible via a sun/moon toggle button in the header.
-    *   **Persistence:** Theme preference is saved in `localStorage`.
-    *   **Component Sync:** The `<closet-item>` Web Component automatically syncs with the current theme using CSS variables.
-*   **Responsive Design:** The application remains fully responsive.
-...
-*   **Modern Aesthetics:** It will feature a clean, modern design with a focus on visual balance and intuitive user experience.
-*   **Color Palette:** A vibrant and energetic color palette will be used to create a welcoming look and feel.
-*   **Typography:** Expressive typography will be used to create a clear visual hierarchy and emphasize key information.
-*   **Visual Effects:** Subtle drop shadows and "glow" effects on interactive elements will be used to create a sense of depth and interactivity. A gentle noise texture will be applied to the background for a premium feel.
-*   **Iconography:** Icons will be used to enhance understanding and navigation.
-
-### **Functionality**
-
-*   **Clothing Item Component (`<closet-item>`):**
-    *   A Web Component will be used to display each clothing item.
-    *   It will show the item's image, name, and category.
-    *   The component will be encapsulated using the Shadow DOM.
-*   **Image Upload Form:**
-    *   A form will allow users to upload an image of a clothing item.
-    *   Input fields will be provided for the item's name and category (e.g., shirt, pants, shoes).
-*   **Data Persistence:**
-    *   Uploaded clothing data (image as a data URL, name, category) will be saved to the browser's `localStorage`.
-    *   This ensures that the user's closet persists even after they close the browser window.
-*   **Closet Gallery:**
-    *   Clothing items will be displayed in a responsive grid layout.
-
-## **Current Task: Initial Build**
-
-1.  **Update `index.html`:**
-    *   Set up the basic page structure including a header, a main content area for the form and the gallery.
-2.  **Update `style.css`:**
-    *   Implement the modern design, including layout, colors, typography, and visual effects described above.
-3.  **Update `main.js`:**
-    *   Create the `<closet-item>` Web Component.
-    *   Implement the logic for handling the image upload form.
-    *   Implement saving to and loading from `localStorage`.
+## **5. File Structure**
+- `index.html`: Main structure and library imports.
+- `main.js`: Application logic, Web Components, and AI integration.
+- `style.css`: Modern, responsive styling.
+- `GEMINI.md`: Development mandates.
+- `blueprint.md`: Project documentation and roadmap.
