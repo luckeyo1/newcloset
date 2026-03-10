@@ -1,16 +1,17 @@
 // ====================================================================
 // ** Firebase Configuration **
 // ====================================================================
-// Note: In a real app, these would be your actual project keys.
-// For this environment, we assume the Firebase compat libraries are loaded.
 const firebaseConfig = {
-    apiKey: "AIzaSyAs-DEMO-ONLY-REPLACE-WITH-REAL",
-    authDomain: "my-virtual-closet-demo.firebaseapp.com",
-    projectId: "my-virtual-closet-demo",
-    storageBucket: "my-virtual-closet-demo.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "1:123456789:web:abcdef123456"
+    apiKey: "AIzaSyAs-Actual-Key-Will-Be-Handled-By-Firebase-Studio", 
+    authDomain: "cherrychoice-test1w-8469-a2886.firebaseapp.com",
+    projectId: "cherrychoice-test1w-8469-a2886",
+    storageBucket: "cherrychoice-test1w-8469-a2886.appspot.com",
+    messagingSenderId: "467241546268",
+    appId: "1:467241546268:web:a29ce5496c0e817d94e5d9"
 };
+
+// Note: In Firebase Studio, the API key is often provided automatically if omitted or handled by the proxy.
+// However, for standard compat, we use the detected projectId and appId.
 
 // Initialize Firebase
 if (!firebase.apps.length) {
@@ -162,6 +163,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const authEmail = document.getElementById('auth-email');
     const authPassword = document.getElementById('auth-password');
     const authSubmit = document.getElementById('auth-submit');
+    const googleLoginBtn = document.getElementById('google-login-btn');
     const switchToSignup = document.getElementById('switch-to-signup');
     const modalTitle = document.getElementById('modal-title');
     
@@ -210,6 +212,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         switchToSignup.textContent = isSignupMode ? '로그인으로 돌아가기' : '회원가입';
     });
 
+    // Email/Password Auth
     authForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = authEmail.value;
@@ -225,7 +228,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             authModal.style.display = 'none';
             authForm.reset();
         } catch (error) {
-            alert(error.message);
+            alert(`인증 오류: ${error.message}`);
+        }
+    });
+
+    // Google Login
+    googleLoginBtn.addEventListener('click', async () => {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        try {
+            await auth.signInWithPopup(provider);
+            authModal.style.display = 'none';
+        } catch (error) {
+            alert(`Google 로그인 오류: ${error.message}`);
         }
     });
 
@@ -233,7 +247,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentUser = user;
         if (user) {
             authBtn.textContent = '로그아웃';
-            userInfo.textContent = `${user.email.split('@')[0]} 님`;
+            userInfo.textContent = `${user.displayName || user.email.split('@')[0]} 님`;
             loadItemsFromCloud();
         } else {
             authBtn.textContent = '로그인';
@@ -345,7 +359,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // --- AI Fashion Analysis Logic (Existing) ---
+    // --- AI Fashion Analysis Logic ---
     const analyzeImage = async (imgElement) => {
         analysisContent.innerHTML = `<div class="placeholder-text"><i class="fa-solid fa-spinner fa-spin"></i> AI 분석 중...</div>`;
         if (!net) return;
