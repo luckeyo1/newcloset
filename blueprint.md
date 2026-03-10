@@ -14,20 +14,21 @@ A modern, AI-powered digital closet application that allows users to upload, cat
 
 ## **3. Technology Stack**
 - **Frontend:** HTML5, CSS3 (Modern Baseline: :has(), Container Queries, OKLCH), Vanilla JS.
-- **AI/ML (API):** Clarifai Fashion Model or Hugging Face Inference API.
-- **AI/ML (Local):** TensorFlow.js (as fallback/preprocessing).
+- **AI/ML (Local):** TensorFlow.js (MobileNet).
 - **Icons:** Font Awesome 6.
 - **Fonts:** Pretendard (Korean optimized).
 - **Storage:** Browser `localStorage`.
+- **Hosting:** Cloudflare Pages (https://newcloset.pages.dev/)
+- **Repository:** GitHub (https://github.com/luckeyo1/newcloset)
 
 ## **4. Current Progress & Roadmap**
 - [x] **Basic Structure:** HTML/CSS/JS scaffolding complete.
 - [x] **Local AI:** MobileNet integration for basic categorization.
 - [x] **AdSense Optimization:** Essential pages (About, Contact, Privacy, Terms) and professional footer added.
+- [x] **Repository Sync:** Pushed to GitHub (luckeyo1/newcloset).
 - [ ] **API Integration:** Connect to a specialized Fashion Analysis API for "Deep Analysis".
 - [ ] **Color Palette:** Implement canvas-based color extraction.
 - [ ] **UI/UX Enhancement:** Apply premium shadows, glassmorphism, and "Glow" effects.
-- [ ] **Analysis Dashboard:** Add a dedicated UI to show detailed AI analysis results.
 
 ## **6. AdSense Compliance Features**
 - **Navigation:** Clear header and footer navigation menus.
@@ -40,8 +41,7 @@ A modern, AI-powered digital closet application that allows users to upload, cat
 - **Content-First Design:** Clear headings and readable text for better crawling.
 
 ## **5. File Structure**
-- `index.html`: Entry point with library imports and UI structure.
-- `main.js`: Core logic, API calls, and Web Component definitions.
-- `style.css`: Advanced styling using modern CSS features.
-- `GEMINI.md`: Development mandates.
-- `blueprint.md`: Documentation and roadmap.
+- `index.html`: Entry point.
+- `main.js`: Core logic.
+- `style.css`: Styling.
+- `blueprint.md`: Documentation.
