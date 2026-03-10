@@ -1,0 +1,111 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us | My Virtual Closet</title>
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <style>
+        .contact-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .contact-form .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .contact-form textarea {
+            min-height: 150px;
+            padding: 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-color);
+            color: var(--text-main);
+            outline: none;
+            font-family: inherit;
+        }
+        .contact-form textarea:focus {
+            border-color: var(--accent-color);
+        }
+    </style>
+</head>
+<body>
+    <nav class="glass-nav">
+        <div class="nav-container">
+            <div class="logo">
+                <a href="index.html" style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa- closet-rack"></i>
+                    <span>MY CLOSET</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="page-container">
+        <h1>Contact Us</h1>
+        <div class="page-content">
+            <p>서비스 이용 중 궁금하신 점이나 제안하고 싶은 사항이 있으시면 언제든 연락주세요. 사용자님의 소중한 의견을 기다리고 있습니다.</p>
+            
+            <form class="contact-form" id="contact-form">
+                <div class="form-group">
+                    <label for="name">성함</label>
+                    <input type="text" id="name" placeholder="성함을 입력해주세요" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">이메일 주소</label>
+                    <input type="email" id="email" placeholder="이메일 주소를 입력해주세요" required>
+                </div>
+                <div class="form-group">
+                    <label for="message">문의 내용</label>
+                    <textarea id="message" placeholder="문의 내용을 자세히 적어주세요" required></textarea>
+                </div>
+                <button type="submit" class="primary-btn">문의하기</button>
+            </form>
+
+            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.9rem;">
+                <p><i class="fa-solid fa-envelope"></i> support@myvirtualcloset.com</p>
+                <p><i class="fa-solid fa-location-dot"></i> 서울특별시 강남구 테헤란로</p>
+            </div>
+        </div>
+    </div>
+
+    <footer class="main-footer">
+        <div class="footer-container">
+            <div class="footer-info">
+                <div class="footer-logo">MY CLOSET</div>
+                <p>AI 기술로 당신의 일상을 더 스마트하게 관리하세요.</p>
+            </div>
+            <div class="footer-links">
+                <h4>Company</h4>
+                <ul>
+                    <li><a href="about.html">About Us</a></li>
+                    <li><a href="contact.html">Contact Us</a></li>
+                </ul>
+            </div>
+            <div class="footer-links">
+                <h4>Legal</h4>
+                <ul>
+                    <li><a href="privacy.html">Privacy Policy</a></li>
+                    <li><a href="terms.html">Terms of Service</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            &copy; 2026 My Virtual Closet. All rights reserved.
+        </div>
+    </footer>
+
+    <script>
+        document.getElementById('contact-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            alert('문의가 접수되었습니다. 감사합니다!');
+            e.target.reset();
+        });
+    </script>
+</body>
+</html>

@@ -31,6 +31,7 @@ class ClosetItem extends HTMLElement {
                     border-radius: 12px;
                     padding: 8px;
                     box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+                    border: 1px solid var(--border-color, #eee);
                 }
                 .image-container {
                     position: relative;
@@ -62,14 +63,14 @@ class ClosetItem extends HTMLElement {
                 .category {
                     font-size: 0.75rem;
                     font-weight: 700;
-                    color: var(--accent-color, #333);
+                    color: #777;
                     text-transform: uppercase;
                     letter-spacing: 0.5px;
                 }
                 .name {
                     font-size: 0.9rem;
                     font-weight: 600;
-                    color: #1a1a1a;
+                    color: var(--text-main, #1a1a1a);
                     white-space: nowrap;
                     overflow: hidden;
                     text-overflow: ellipsis;
@@ -125,21 +126,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fileInput = document.getElementById('item-image');
     const nameInput = document.getElementById('item-name');
     const categoryInput = document.getElementById('item-category');
+    const analysisContent = document.getElementById('analysis-content');
+    const colorPalette = document.getElementById('color-palette');
     
-    const STORAGE_KEY = 'virtualClosetItems_v2';
+    const STORAGE_KEY = 'virtualClosetItems_v3';
     const THEME_KEY = 'closetTheme_v2';
 
     let net = null;
+    let isModelLoading = true;
 
-    // Load MobileNet Model
+    // --- AI Model Management ---
     const loadModel = async () => {
-        dropZone.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><p>AI 모델 로딩 중...</p>`;
         try {
+            console.log('Loading AI models...');
+            // Wait for TFJS to be ready
+            if (window.tf) await tf.ready();
+            
+            // Load MobileNet
             net = await mobilenet.load();
-            dropZone.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i><p>모델 로드 완료! 사진을 올려주세요</p>`;
+            
+            isModelLoading = false;
+            console.log('AI models loaded successfully.');
+            
+            // Update UI to show ready status
+            if (dropZone.querySelector('p')) {
+                dropZone.querySelector('p').textContent = '이미지를 업로드하세요 (AI 분석 준비 완료)';
+            }
         } catch (err) {
             console.error('Model failed to load', err);
-            dropZone.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i><p>AI 모델 로드 실패</p>`;
+            isModelLoading = false;
+            analysisContent.innerHTML = `<div class="placeholder-text" style="color: #ff4d4d;"><i class="fa-solid fa-circle-exclamation"></i> AI 모델 로딩 실패. 새로고침을 해주세요.</div>`;
         }
     };
     loadModel();
@@ -171,35 +187,121 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     initTheme();
 
-    // --- AI Categorization Logic ---
-    const categorizeImage = async (imgElement) => {
-        if (!net) return;
+    // --- AI Fashion Analysis Logic ---
+    const analyzeImage = async (imgElement) => {
+        analysisContent.innerHTML = `<div class="placeholder-text"><i class="fa-solid fa-spinner fa-spin"></i> AI 분석 중...</div>`;
         
-        dropZone.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles fa-beat"></i><p>AI 분석 중...</p>`;
-        
-        const result = await net.classify(imgElement);
-        console.log('AI Results:', result);
-        
-        // Simple mapping from MobileNet to our categories
-        const topResult = result[0].className.toLowerCase();
-        let detectedCategory = "";
-
-        if (topResult.includes('shirt') || topResult.includes('jersey') || topResult.includes('sweater') || topResult.includes('cardigan')) {
-            detectedCategory = "Top";
-        } else if (topResult.includes('jean') || topResult.includes('pant') || topResult.includes('short') || topResult.includes('skirt')) {
-            detectedCategory = "Bottom";
-        } else if (topResult.includes('coat') || topResult.includes('jacket') || topResult.includes('suit')) {
-            detectedCategory = "Outer";
-        } else if (topResult.includes('shoe') || topResult.includes('sneaker') || topResult.includes('boot')) {
-            detectedCategory = "Shoes";
-        } else if (topResult.includes('dress') || topResult.includes('gown')) {
-            detectedCategory = "Dress";
-        } else {
-            detectedCategory = "Acc";
+        // Wait if model is still loading
+        let attempts = 0;
+        while (isModelLoading && attempts < 50) {
+            await new Promise(r => setTimeout(r, 200));
+            attempts++;
         }
 
-        categoryInput.value = detectedCategory;
-        nameInput.value = result[0].className.split(',')[0]; // Suggest a name
+        if (!net) {
+            analysisContent.innerHTML = `<div class="placeholder-text"><i class="fa-solid fa-circle-exclamation"></i> 모델이 로드되지 않았습니다.</div>`;
+            return;
+        }
+
+        try {
+            const results = {
+                category: 'Acc',
+                name: '새로운 아이템',
+                confidence: 0,
+                tags: []
+            };
+
+            // 1. Local Analysis (MobileNet)
+            const predictions = await net.classify(imgElement);
+            if (predictions && predictions.length > 0) {
+                const topResult = predictions[0];
+                results.name = topResult.className.split(',')[0];
+                results.confidence = Math.round(topResult.probability * 100);
+                results.tags = predictions.slice(0, 3).map(p => p.className.split(',')[0]);
+
+                // Mapping to categories
+                const label = topResult.className.toLowerCase();
+                if (label.includes('shirt') || label.includes('t-shirt') || label.includes('sweater') || label.includes('jersey') || label.includes('blouse') || label.includes('cardigan')) results.category = 'Top';
+                else if (label.includes('jean') || label.includes('pant') || label.includes('short') || label.includes('skirt') || label.includes('trouser')) results.category = 'Bottom';
+                else if (label.includes('coat') || label.includes('jacket') || label.includes('suit') || label.includes('parka')) results.category = 'Outer';
+                else if (label.includes('dress') || label.includes('gown') || label.includes('robe')) results.category = 'Dress';
+                else if (label.includes('shoe') || label.includes('sneaker') || label.includes('boot') || label.includes('sandal')) results.category = 'Shoes';
+                else if (label.includes('hat') || label.includes('bag') || label.includes('watch') || label.includes('sunglass') || label.includes('scarf')) results.category = 'Acc';
+            }
+
+            // 2. Color Extraction
+            const colors = extractColors(imgElement);
+            
+            // Update UI
+            renderAnalysis(results, colors);
+            
+            // Auto-fill form
+            categoryInput.value = results.category;
+            nameInput.value = results.name;
+            
+        } catch (error) {
+            console.error('Analysis Error:', error);
+            analysisContent.innerHTML = `<div class="placeholder-text"><i class="fa-solid fa-circle-exclamation"></i> 분석 중 오류가 발생했습니다.</div>`;
+        }
+    };
+
+    const renderAnalysis = (data, colors) => {
+        analysisContent.innerHTML = `
+            <div class="analysis-item">
+                <span class="analysis-label">분석된 명칭</span>
+                <span class="analysis-value">${data.name}</span>
+            </div>
+            <div class="analysis-item">
+                <span class="analysis-label">카테고리 추정</span>
+                <span class="analysis-value">${data.category}</span>
+            </div>
+            <div class="analysis-item">
+                <span class="analysis-label">AI 신뢰도</span>
+                <span class="analysis-value">${data.confidence}%</span>
+            </div>
+            <div class="analysis-item">
+                <span class="analysis-label">주요 키워드</span>
+                <span class="analysis-value" style="font-size: 0.75rem; text-align: right;">${data.tags.join(', ')}</span>
+            </div>
+        `;
+
+        colorPalette.innerHTML = '';
+        colors.forEach(color => {
+            const chip = document.createElement('div');
+            chip.className = 'color-chip';
+            chip.style.backgroundColor = color;
+            chip.setAttribute('data-hex', color);
+            colorPalette.appendChild(chip);
+        });
+    };
+
+    const extractColors = (img) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 100;
+        canvas.height = 100;
+        ctx.drawImage(img, 0, 0, 100, 100);
+        
+        const imageData = ctx.getImageData(0, 0, 100, 100).data;
+        const colorCounts = {};
+        
+        for (let i = 0; i < imageData.length; i += 40) { // Step to speed up
+            const r = imageData[i];
+            const g = imageData[i+1];
+            const b = imageData[i+2];
+            
+            // Quantize to reduce noise (group similar colors)
+            const qr = Math.round(r / 10) * 10;
+            const qg = Math.round(g / 10) * 10;
+            const qb = Math.round(b / 10) * 10;
+            
+            const hex = `#${((1 << 24) + (qr << 16) + (qg << 8) + qb).toString(16).slice(1)}`;
+            colorCounts[hex] = (colorCounts[hex] || 0) + 1;
+        }
+        
+        return Object.keys(colorCounts)
+            .sort((a, b) => colorCounts[b] - colorCounts[a])
+            .slice(0, 5);
     };
 
     // --- File Handling ---
@@ -235,9 +337,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const img = new Image();
             img.src = e.target.result;
             img.onload = async () => {
-                // Show preview in drop zone
+                // Show preview
                 dropZone.innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:contain; border-radius:8px;">`;
-                await categorizeImage(img);
+                // Start Analysis
+                await analyzeImage(img);
             };
         };
         reader.readAsDataURL(file);
@@ -248,7 +351,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const items = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
         gallery.innerHTML = '';
         if (items.length === 0) {
-            gallery.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 80px 40px; color: #999; border: 2px dashed #eee; border-radius: 20px;">옷장이 비어있습니다. AI의 도움을 받아 옷장을 채워보세요!</div>';
+            gallery.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 80px 40px; color: #999; border: 2px dashed var(--border-color); border-radius: 20px;">옷장이 비어있습니다. 사진을 업로드하여 채워보세요!</div>';
             return;
         }
         items.forEach(itemData => {
@@ -284,27 +387,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // --- Form Submission ---
     form.addEventListener('submit', (e) => {
         e.preventDefault();
         const file = fileInput.files[0];
-        if (!file) return alert('이미지를 선택해주세요.');
+        if (!file && !dropZone.querySelector('img')) return alert('이미지를 업로드해주세요.');
 
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            const newItemData = {
-                id: Date.now(),
-                name: nameInput.value,
-                category: categoryInput.value,
-                imageSrc: reader.result
-            };
-
-            saveItem(newItemData);
-            loadItems();
-            form.reset();
-            dropZone.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i><p>클릭하거나 이미지를 드래그하세요</p>`;
+        // If file exists, save it
+        const currentImg = dropZone.querySelector('img');
+        const newItemData = {
+            id: Date.now(),
+            name: nameInput.value,
+            category: categoryInput.value,
+            imageSrc: currentImg ? currentImg.src : ''
         };
-        reader.readAsDataURL(file);
+
+        saveItem(newItemData);
+        loadItems();
+        form.reset();
+        dropZone.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i><p>이미지를 업로드하세요</p>`;
+        analysisContent.innerHTML = `<div class="placeholder-text">이미지를 업로드하면 분석 결과가 여기에 표시됩니다.</div>`;
+        colorPalette.innerHTML = '';
     });
 
     loadItems();
