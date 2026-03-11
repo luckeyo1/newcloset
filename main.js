@@ -47,63 +47,67 @@ class ClosetItem extends HTMLElement {
                     cursor: pointer;
                     transition: 0.3s;
                     background: var(--card-bg, #fff);
-                    border-radius: 12px;
-                    padding: 8px;
-                    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+                    border-radius: 20px;
+                    padding: 12px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
                     border: 1px solid var(--border-color, #eee);
                 }
                 .image-container {
                     position: relative;
                     width: 100%;
-                    padding-bottom: 125%; 
-                    background-color: #f1f1f1;
-                    border-radius: 8px;
+                    padding-bottom: 110%; 
+                    background-color: transparent;
+                    border-radius: 16px;
                     overflow: hidden;
                     margin-bottom: 12px;
+                    background-image: radial-gradient(circle at 50% 50%, rgba(0,0,0,0.02) 0%, transparent 80%);
                 }
                 .image-container img {
                     position: absolute;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                    transition: 0.5s;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    max-width: 90%;
+                    max-height: 90%;
+                    object-fit: contain;
+                    transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    filter: drop-shadow(0 10px 15px rgba(0,0,0,0.1));
                 }
                 .product-card:hover img {
-                    transform: scale(1.05);
+                    transform: translate(-50%, -55%) scale(1.1);
                 }
                 .info {
                     display: flex;
                     flex-direction: column;
                     gap: 4px;
-                    padding: 4px;
+                    padding: 4px 8px;
                 }
                 .category {
-                    font-size: 0.75rem;
-                    font-weight: 700;
-                    color: #777;
+                    font-size: 0.7rem;
+                    font-weight: 800;
+                    color: #999;
                     text-transform: uppercase;
-                    letter-spacing: 0.5px;
+                    letter-spacing: 1px;
                 }
                 .name {
-                    font-size: 0.9rem;
-                    font-weight: 600;
+                    font-size: 0.95rem;
+                    font-weight: 700;
                     color: var(--text-main, #1a1a1a);
                     white-space: nowrap;
                     overflow: hidden;
                     text-overflow: ellipsis;
                 }
                 .delete-btn {
-                    margin-top: 8px;
-                    font-size: 0.7rem;
+                    margin-top: 10px;
+                    font-size: 0.75rem;
                     color: #ff4d4d;
                     background: none;
                     border: none;
                     cursor: pointer;
                     text-align: left;
                     padding: 0;
-                    opacity: 0.6;
+                    opacity: 0.5;
+                    transition: 0.3s;
                 }
                 .delete-btn:hover {
                     opacity: 1;
@@ -117,7 +121,7 @@ class ClosetItem extends HTMLElement {
                 <div class="info">
                     <span class="category">${category}</span>
                     <span class="name">${name}</span>
-                    <button class="delete-btn">삭제하기</button>
+                    <button class="delete-btn">아이템 삭제</button>
                 </div>
             </div>
         `;
@@ -157,7 +161,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const authModal = document.getElementById('auth-modal');
     const closeModal = document.querySelector('.close-modal');
     const authForm = document.getElementById('auth-form');
-    const authEmail = document.getElementById('auth-email');
+    const authIdInput = document.getElementById('auth-id');
     const authPassword = document.getElementById('auth-password');
     const authSubmit = document.getElementById('auth-submit');
     const googleLoginBtn = document.getElementById('google-login-btn');
@@ -167,6 +171,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const THEME_KEY = 'closetTheme_v2';
     const TRIAL_KEY = 'closetTrialItems_v1';
     const TRIAL_LIMIT = 10;
+    const REMOVE_BG_API_KEY = '5Ayb2PWWmbR9L6WTUe8kebWG';
 
     let net = null;
     let isModelLoading = true;
@@ -210,9 +215,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // --- Auth Logic ---
+    const idToEmail = (id) => `${id.trim().toLowerCase()}@mycloset.com`;
+
     authBtn.addEventListener('click', () => {
         if (currentUser) {
             auth.signOut();
+            showToast('로그아웃 되었습니다.', 'info');
         } else {
             authModal.style.display = 'block';
         }
@@ -230,7 +238,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     authForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const email = authEmail.value;
+        const id = authIdInput.value;
+        const email = idToEmail(id);
         const password = authPassword.value;
 
         try {
@@ -239,30 +248,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if (isSignupMode) {
                 await auth.createUserWithEmailAndPassword(email, password);
-                showToast('회원가입 완료! 체험판 데이터가 클라우드로 동기화됩니다.', 'success');
+                showToast(`환영합니다, ${id}님!`, 'success');
                 await syncTrialToCloud();
             } else {
                 await auth.signInWithEmailAndPassword(email, password);
-                showToast('성공적으로 로그인했습니다.', 'success');
+                showToast(`${id}님, 반가워요!`, 'success');
             }
             authModal.style.display = 'none';
+            authForm.reset();
         } catch (error) {
-            showToast(`인증 오류: ${error.message}`, 'error');
+            let msg = '인증 오류가 발생했습니다.';
+            if (error.code === 'auth/email-already-in-use') msg = '이미 사용 중인 아이디입니다.';
+            if (error.code === 'auth/wrong-password') msg = '비밀번호가 틀렸습니다.';
+            showToast(msg, 'error');
         } finally {
             authSubmit.disabled = false;
             authSubmit.textContent = isSignupMode ? '가입하기' : '로그인';
-        }
-    });
-
-    googleLoginBtn.addEventListener('click', async () => {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        try {
-            await auth.signInWithPopup(provider);
-            showToast('Google 로그인 성공!', 'success');
-            await syncTrialToCloud();
-            authModal.style.display = 'none';
-        } catch (error) {
-            showToast(`Google 로그인 오류: ${error.message}`, 'error');
         }
     });
 
@@ -270,7 +271,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentUser = user;
         if (user) {
             authBtn.textContent = '로그아웃';
-            userInfo.textContent = `${user.displayName || user.email.split('@')[0]} 님`;
+            const displayId = user.email.split('@')[0];
+            userInfo.textContent = `${user.displayName || displayId} 님`;
             loadItems();
         } else {
             authBtn.textContent = '로그인';
@@ -279,13 +281,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // --- Trial & Cloud Data Management ---
+    // --- Background Removal Logic ---
+    const removeBackground = async (file) => {
+        const formData = new FormData();
+        formData.append('image_file', file);
+        formData.append('size', 'auto');
+
+        try {
+            const response = await fetch('https://api.remove.bg/v1.0/removebg', {
+                method: 'POST',
+                headers: { 'X-Api-Key': REMOVE_BG_API_KEY },
+                body: formData
+            });
+
+            if (!response.ok) throw new Error('배경 제거 실패 (API 한도 초과 혹은 오류)');
+            return await response.blob();
+        } catch (err) {
+            console.error(err);
+            return null;
+        }
+    };
+
+    // --- Trial & Cloud Management ---
     const getTrialItems = () => JSON.parse(localStorage.getItem(TRIAL_KEY) || '[]');
     
     const saveTrialItem = (itemData) => {
         const items = getTrialItems();
         if (items.length >= TRIAL_LIMIT) {
-            showToast('체험판 한도(10개)에 도달했습니다. 로그인하여 무제한으로 사용하세요!', 'error');
+            showToast('체험판 한도(10개)에 도달했습니다.', 'error');
             authModal.style.display = 'block';
             return false;
         }
@@ -297,8 +320,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const syncTrialToCloud = async () => {
         const trialItems = getTrialItems();
         if (trialItems.length === 0 || !currentUser) return;
-        
-        showToast('체험판 데이터를 동기화 중입니다...', 'info');
         for (const item of trialItems) {
             delete item.id;
             await saveItemToCloud(item);
@@ -308,7 +329,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     const loadItems = async () => {
-        gallery.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px;"><i class="fa-solid fa-spinner fa-spin"></i> 로딩 중...</div>';
+        gallery.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px;"><i class="fa-solid fa-spinner fa-spin"></i> 스타일 불러오는 중...</div>';
         
         let items = [];
         if (currentUser) {
@@ -320,10 +341,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 const snapshot = await q.get();
                 snapshot.forEach(doc => items.push({ ...doc.data(), id: doc.id }));
-            } catch (err) {
-                console.error(err);
-                showToast('데이터 로딩 중 오류가 발생했습니다.', 'error');
-            }
+            } catch (err) { console.error(err); }
         } else {
             items = getTrialItems();
             if (currentCategoryFilter !== '전체') {
@@ -334,7 +352,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         gallery.innerHTML = '';
         if (items.length === 0) {
-            gallery.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 80px 40px; color: #999; border: 2px dashed var(--border-color); border-radius: 20px;">아이템이 없습니다.</div>';
+            gallery.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 80px 40px; color: #999; border: 2px dashed var(--border-color); border-radius: 20px;">아직 등록된 아이템이 없습니다.</div>';
             return;
         }
 
@@ -373,7 +391,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- AI Fashion Analysis Logic ---
     const analyzeImage = async (imgElement) => {
-        analysisContent.innerHTML = `<div class="placeholder-text"><i class="fa-solid fa-spinner fa-spin"></i> AI 분석 중...</div>`;
+        analysisContent.innerHTML = `<div class="placeholder-text"><i class="fa-solid fa-spinner fa-spin"></i> AI 스타일 분석 중...</div>`;
         if (!net) return;
 
         const predictions = await net.classify(imgElement);
@@ -382,12 +400,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (predictions && predictions.length > 0) {
             const topResult = predictions[0];
             results.name = topResult.className.split(',')[0];
-            results.confidence = Math.round(topResult.probability * 100);
-
             const label = topResult.className.toLowerCase();
             if (label.match(/shirt|t-shirt|sweater|jersey|blouse|cardigan/)) {
                 results.category = 'Top';
-                results.occasion = label.match(/shirt|blouse/) ? 'Formal/Office' : 'Casual';
                 results.season = label.match(/sweater|cardigan/) ? 'Winter/Autumn' : 'Summer/Spring';
             } else if (label.match(/jean|pant|short|skirt|trouser/)) {
                 results.category = 'Bottom';
@@ -409,10 +424,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const renderAnalysis = (data, colors) => {
         analysisContent.innerHTML = `
-            <div class="analysis-item"><span class="analysis-label">분석된 명칭</span><span class="analysis-value">${data.name}</span></div>
-            <div class="analysis-item"><span class="analysis-label">카테고리 추정</span><span class="analysis-value">${data.category}</span></div>
+            <div class="analysis-item"><span class="analysis-label">아이템 명칭</span><span class="analysis-value">${data.name}</span></div>
+            <div class="analysis-item"><span class="analysis-label">카테고리</span><span class="analysis-value">${data.category}</span></div>
             <div class="analysis-item"><span class="analysis-label">추천 시즌</span><span class="analysis-value">${data.season}</span></div>
-            <div class="analysis-item"><span class="analysis-label">스타일리스트 팁</span><span class="analysis-value" style="color:#ffaa00; font-size:0.85rem;">${getStylingTip(data.category)}</span></div>
+            <div class="analysis-item" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                <span class="analysis-label">Fashion Stylist Tip</span>
+                <span class="analysis-value" style="color:#ffaa00; font-size:0.85rem;">${getStylingTip(data.category)}</span>
+            </div>
         `;
         colorPalette.innerHTML = '';
         colors.forEach(color => {
@@ -445,19 +463,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- File & Form Handling ---
     dropZone.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', (e) => {
+    fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
+
+        // Step 1: Show Removing Background Status
+        dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-scissors fa-beat"></i><p>AI가 배경을 제거하고 있습니다...</p></div>`;
+        
+        // Step 2: Remove Background
+        const processedBlob = await removeBackground(file);
+        
         const reader = new FileReader();
         reader.onload = (e) => {
             const img = new Image();
             img.src = e.target.result;
             img.onload = () => {
-                dropZone.innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:contain; border-radius:8px;">`;
+                dropZone.innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:contain; border-radius:12px; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.15));">`;
                 analyzeImage(img);
             };
         };
-        reader.readAsDataURL(file);
+
+        if (processedBlob) {
+            reader.readAsDataURL(processedBlob);
+            showToast('배경이 성공적으로 제거되었습니다!', 'success');
+        } else {
+            reader.readAsDataURL(file);
+            showToast('배경 제거 실패 (원본 이미지 사용)', 'info');
+        }
     });
 
     form.addEventListener('submit', async (e) => {
@@ -483,6 +515,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         dropZone.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i><p>이미지를 업로드하세요</p>`;
         analysisContent.innerHTML = `<div class="placeholder-text">이미지 분석 결과가 여기에 표시됩니다.</div>`;
         colorPalette.innerHTML = '';
+        showToast('옷장에 저장되었습니다!', 'success');
     });
 
     // --- Filtering Logic ---
