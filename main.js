@@ -10,9 +10,6 @@ const firebaseConfig = {
     appId: "1:467241546268:web:a29ce5496c0e817d94e5d9"
 };
 
-// Note: In Firebase Studio, the API key is often provided automatically if omitted or handled by the proxy.
-// However, for standard compat, we use the detected projectId and appId.
-
 // Initialize Firebase
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
@@ -168,12 +165,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const modalTitle = document.getElementById('modal-title');
     
     const THEME_KEY = 'closetTheme_v2';
+    const TRIAL_KEY = 'closetTrialItems_v1';
+    const TRIAL_LIMIT = 10;
 
     let net = null;
     let isModelLoading = true;
     let currentUser = null;
     let isSignupMode = false;
     let currentCategoryFilter = '전체';
+    let analyzedColors = [];
 
     // --- AI Model Management ---
     const loadModel = async () => {
@@ -187,30 +187,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (err) {
             console.error('Model failed to load', err);
             isModelLoading = false;
-            analysisContent.innerHTML = `<div class="placeholder-text" style="color: #ff4d4d;"><i class="fa-solid fa-circle-exclamation"></i> AI 모델 로딩 실패.</div>`;
         }
     };
     loadModel();
-
-    // --- Auth Logic ---
-    authBtn.addEventListener('click', () => {
-        if (currentUser) {
-            auth.signOut();
-        } else {
-            authModal.style.display = 'block';
-        }
-    });
-
-    closeModal.addEventListener('click', () => authModal.style.display = 'none');
-    window.onclick = (e) => { if (e.target == authModal) authModal.style.display = 'none'; };
-
-    switchToSignup.addEventListener('click', (e) => {
-        e.preventDefault();
-        isSignupMode = !isSignupMode;
-        modalTitle.textContent = isSignupMode ? '회원가입' : '로그인';
-        authSubmit.textContent = isSignupMode ? '가입하기' : '로그인';
-        switchToSignup.textContent = isSignupMode ? '로그인으로 돌아가기' : '회원가입';
-    });
 
     // --- UI Helpers: Toast Notification ---
     const showToast = (message, type = 'info') => {
@@ -230,16 +209,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 3000);
     };
 
-    // Email/Password Auth
+    // --- Auth Logic ---
+    authBtn.addEventListener('click', () => {
+        if (currentUser) {
+            auth.signOut();
+        } else {
+            authModal.style.display = 'block';
+        }
+    });
+
+    closeModal.addEventListener('click', () => authModal.style.display = 'none');
+    
+    switchToSignup.addEventListener('click', (e) => {
+        e.preventDefault();
+        isSignupMode = !isSignupMode;
+        modalTitle.textContent = isSignupMode ? '회원가입' : '로그인';
+        authSubmit.textContent = isSignupMode ? '가입하기' : '로그인';
+        switchToSignup.textContent = isSignupMode ? '로그인으로 돌아가기' : '회원가입';
+    });
+
     authForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = authEmail.value;
         const password = authPassword.value;
-
-        if (password.length < 6) {
-            showToast('비밀번호는 최소 6자 이상이어야 합니다.', 'error');
-            return;
-        }
 
         try {
             authSubmit.disabled = true;
@@ -247,33 +239,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if (isSignupMode) {
                 await auth.createUserWithEmailAndPassword(email, password);
-                showToast('회원가입이 완료되었습니다!', 'success');
+                showToast('회원가입 완료! 체험판 데이터가 클라우드로 동기화됩니다.', 'success');
+                await syncTrialToCloud();
             } else {
                 await auth.signInWithEmailAndPassword(email, password);
                 showToast('성공적으로 로그인했습니다.', 'success');
             }
             authModal.style.display = 'none';
-            authForm.reset();
         } catch (error) {
-            console.error("Auth Error:", error.code);
-            let msg = '인증 중 오류가 발생했습니다.';
-            if (error.code === 'auth/email-already-in-use') msg = '이미 사용 중인 이메일입니다.';
-            if (error.code === 'auth/wrong-password') msg = '비밀번호가 틀렸습니다.';
-            if (error.code === 'auth/user-not-found') msg = '존재하지 않는 계정입니다.';
-            if (error.code === 'auth/invalid-email') msg = '유효하지 않은 이메일 형식입니다.';
-            showToast(msg, 'error');
+            showToast(`인증 오류: ${error.message}`, 'error');
         } finally {
             authSubmit.disabled = false;
             authSubmit.textContent = isSignupMode ? '가입하기' : '로그인';
         }
     });
 
-    // Google Login
     googleLoginBtn.addEventListener('click', async () => {
         const provider = new firebase.auth.GoogleAuthProvider();
         try {
             await auth.signInWithPopup(provider);
             showToast('Google 로그인 성공!', 'success');
+            await syncTrialToCloud();
             authModal.style.display = 'none';
         } catch (error) {
             showToast(`Google 로그인 오류: ${error.message}`, 'error');
@@ -285,115 +271,104 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (user) {
             authBtn.textContent = '로그아웃';
             userInfo.textContent = `${user.displayName || user.email.split('@')[0]} 님`;
-            loadItemsFromCloud();
+            loadItems();
         } else {
             authBtn.textContent = '로그인';
             userInfo.textContent = '';
-            gallery.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 80px 40px; color: #999;">로그인하시면 클라우드에 저장된 옷장을 볼 수 있습니다.</div>';
+            loadItems();
         }
     });
 
-    // --- Theme Handling ---
-    const initTheme = () => {
-        const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
-        if (savedTheme === 'light') {
-            document.body.classList.add('light-mode');
-            updateThemeIcon('light');
+    // --- Trial & Cloud Data Management ---
+    const getTrialItems = () => JSON.parse(localStorage.getItem(TRIAL_KEY) || '[]');
+    
+    const saveTrialItem = (itemData) => {
+        const items = getTrialItems();
+        if (items.length >= TRIAL_LIMIT) {
+            showToast('체험판 한도(10개)에 도달했습니다. 로그인하여 무제한으로 사용하세요!', 'error');
+            authModal.style.display = 'block';
+            return false;
         }
+        items.push({ ...itemData, id: 'trial_' + Date.now(), createdAt: new Date().toISOString() });
+        localStorage.setItem(TRIAL_KEY, JSON.stringify(items));
+        return true;
     };
 
-    const updateThemeIcon = (theme) => {
-        const icon = themeToggle.querySelector('i');
-        if (theme === 'light') icon.classList.replace('fa-moon', 'fa-sun');
-        else icon.classList.replace('fa-sun', 'fa-moon');
-    };
-
-    themeToggle.addEventListener('click', () => {
-        const isLight = document.body.classList.toggle('light-mode');
-        const theme = isLight ? 'light' : 'dark';
-        localStorage.setItem(THEME_KEY, theme);
-        updateThemeIcon(theme);
-    });
-    initTheme();
-
-    // --- Filtering Logic ---
-    filterButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            filterButtons.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentCategoryFilter = btn.textContent;
-            loadItemsFromCloud();
-        });
-    });
-
-    const categoryMap = {
-        '상의': 'Top',
-        '하의': 'Bottom',
-        '아우터': 'Outer',
-        '원피스': 'Dress',
-        '신발': 'Shoes',
-        '액세서리': 'Acc'
-    };
-
-    // --- Data Management (Firestore) ---
-    const loadItemsFromCloud = async () => {
-        if (!currentUser) return;
+    const syncTrialToCloud = async () => {
+        const trialItems = getTrialItems();
+        if (trialItems.length === 0 || !currentUser) return;
         
+        showToast('체험판 데이터를 동기화 중입니다...', 'info');
+        for (const item of trialItems) {
+            delete item.id;
+            await saveItemToCloud(item);
+        }
+        localStorage.removeItem(TRIAL_KEY);
+        loadItems();
+    };
+
+    const loadItems = async () => {
         gallery.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px;"><i class="fa-solid fa-spinner fa-spin"></i> 로딩 중...</div>';
         
-        try {
-            let q = db.collection('wardrobes').doc(currentUser.uid).collection('items').orderBy('createdAt', 'desc');
-            
+        let items = [];
+        if (currentUser) {
+            try {
+                let q = db.collection('wardrobes').doc(currentUser.uid).collection('items').orderBy('createdAt', 'desc');
+                if (currentCategoryFilter !== '전체') {
+                    const engCategory = categoryMap[currentCategoryFilter] || currentCategoryFilter;
+                    q = q.where('category', '==', engCategory);
+                }
+                const snapshot = await q.get();
+                snapshot.forEach(doc => items.push({ ...doc.data(), id: doc.id }));
+            } catch (err) {
+                console.error(err);
+                showToast('데이터 로딩 중 오류가 발생했습니다.', 'error');
+            }
+        } else {
+            items = getTrialItems();
             if (currentCategoryFilter !== '전체') {
                 const engCategory = categoryMap[currentCategoryFilter] || currentCategoryFilter;
-                q = q.where('category', '==', engCategory);
+                items = items.filter(i => i.category === engCategory);
             }
-
-            const snapshot = await q.get();
-            gallery.innerHTML = '';
-            
-            if (snapshot.empty) {
-                gallery.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 80px 40px; color: #999; border: 2px dashed var(--border-color); border-radius: 20px;">선택한 카테고리에 아이템이 없습니다.</div>';
-                return;
-            }
-
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                gallery.appendChild(createClosetItem({ ...data, id: doc.id }));
-            });
-        } catch (error) {
-            console.error("Error loading items:", error);
-            gallery.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #ff4d4d;">데이터를 불러오는 중 오류가 발생했습니다.</div>';
         }
-    };
 
-    const createClosetItem = (itemData) => {
-        const item = document.createElement('closet-item');
-        item.setAttribute('name', itemData.name);
-        item.setAttribute('category', itemData.category);
-        item.setAttribute('image-src', itemData.imageSrc);
-        item.setAttribute('item-id', itemData.id);
-        return item;
+        gallery.innerHTML = '';
+        if (items.length === 0) {
+            gallery.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 80px 40px; color: #999; border: 2px dashed var(--border-color); border-radius: 20px;">아이템이 없습니다.</div>';
+            return;
+        }
+
+        items.forEach(itemData => {
+            const item = document.createElement('closet-item');
+            item.setAttribute('name', itemData.name);
+            item.setAttribute('category', itemData.category);
+            item.setAttribute('image-src', itemData.imageSrc);
+            item.setAttribute('item-id', itemData.id);
+            gallery.appendChild(item);
+        });
     };
 
     const saveItemToCloud = async (itemData) => {
-        if (!currentUser) return alert('로그인이 필요합니다.');
+        if (!currentUser) return;
         await db.collection('wardrobes').doc(currentUser.uid).collection('items').add({
             ...itemData,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
     };
 
-    const deleteItemFromCloud = async (id) => {
-        if (!currentUser) return;
-        await db.collection('wardrobes').doc(currentUser.uid).collection('items').doc(id).delete();
-        loadItemsFromCloud();
+    const deleteItem = async (id) => {
+        if (id.startsWith('trial_')) {
+            const items = getTrialItems().filter(i => i.id !== id);
+            localStorage.setItem(TRIAL_KEY, JSON.stringify(items));
+            loadItems();
+        } else if (currentUser) {
+            await db.collection('wardrobes').doc(currentUser.uid).collection('items').doc(id).delete();
+            loadItems();
+        }
     };
 
     document.addEventListener('delete-item', (e) => {
-        if (confirm('이 아이템을 삭제할까요?')) {
-            deleteItemFromCloud(e.detail.id);
-        }
+        if (confirm('이 아이템을 삭제할까요?')) deleteItem(e.detail.id);
     });
 
     // --- AI Fashion Analysis Logic ---
@@ -402,57 +377,42 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!net) return;
 
         const predictions = await net.classify(imgElement);
-        const results = { category: 'Acc', name: '새로운 아이템', confidence: 0, tags: [], season: 'All Season', occasion: 'Casual' };
+        const results = { category: 'Acc', name: '새로운 아이템', confidence: 0, season: 'All Season', occasion: 'Casual' };
 
         if (predictions && predictions.length > 0) {
             const topResult = predictions[0];
             results.name = topResult.className.split(',')[0];
             results.confidence = Math.round(topResult.probability * 100);
-            results.tags = predictions.slice(0, 3).map(p => p.className.split(',')[0]);
 
             const label = topResult.className.toLowerCase();
             if (label.match(/shirt|t-shirt|sweater|jersey|blouse|cardigan/)) {
                 results.category = 'Top';
                 results.occasion = label.match(/shirt|blouse/) ? 'Formal/Office' : 'Casual';
                 results.season = label.match(/sweater|cardigan/) ? 'Winter/Autumn' : 'Summer/Spring';
-            }
-            else if (label.match(/jean|pant|short|skirt|trouser/)) {
+            } else if (label.match(/jean|pant|short|skirt|trouser/)) {
                 results.category = 'Bottom';
-                results.occasion = label.match(/trouser/) ? 'Formal' : 'Casual';
-            }
-            else if (label.match(/coat|jacket|suit|parka/)) {
+            } else if (label.match(/coat|jacket|suit|parka/)) {
                 results.category = 'Outer';
                 results.season = 'Winter/Autumn';
-                results.occasion = label.match(/suit|coat/) ? 'Formal' : 'Casual';
-            }
-            else if (label.match(/dress|gown|robe/)) {
+            } else if (label.match(/dress|gown|robe/)) {
                 results.category = 'Dress';
-                results.occasion = 'Formal/Date';
-            }
-            else if (label.match(/shoe|sneaker|boot|sandal/)) {
+            } else if (label.match(/shoe|sneaker|boot|sandal/)) {
                 results.category = 'Shoes';
             }
         }
 
-        const colors = extractColors(imgElement);
-        renderAnalysis(results, colors);
+        analyzedColors = extractColors(imgElement);
+        renderAnalysis(results, analyzedColors);
         categoryInput.value = results.category;
         nameInput.value = results.name;
     };
 
     const renderAnalysis = (data, colors) => {
-        const harmony = getHarmony(colors[0]);
         analysisContent.innerHTML = `
             <div class="analysis-item"><span class="analysis-label">분석된 명칭</span><span class="analysis-value">${data.name}</span></div>
             <div class="analysis-item"><span class="analysis-label">카테고리 추정</span><span class="analysis-value">${data.category}</span></div>
             <div class="analysis-item"><span class="analysis-label">추천 시즌</span><span class="analysis-value">${data.season}</span></div>
-            <div class="analysis-item"><span class="analysis-label">추천 TPO</span><span class="analysis-value">${data.occasion}</span></div>
-            <div class="analysis-item" style="flex-direction: column; align-items: flex-start; gap: 8px;">
-                <span class="analysis-label">Fashion Stylist Tip</span>
-                <span class="analysis-value" style="font-size: 0.85rem; font-weight: 500; color: #ffaa00;">
-                    ${getStylingTip(data.category, harmony)}
-                </span>
-            </div>
+            <div class="analysis-item"><span class="analysis-label">스타일리스트 팁</span><span class="analysis-value" style="color:#ffaa00; font-size:0.85rem;">${getStylingTip(data.category)}</span></div>
         `;
         colorPalette.innerHTML = '';
         colors.forEach(color => {
@@ -464,22 +424,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     };
 
-    const getHarmony = (hex) => {
-        if (!hex) return 'Neutral';
-        // Simple logic to suggest matching colors
-        return 'Match with Neutrals (Black/White/Grey)';
-    };
-
-    const getStylingTip = (category, harmony) => {
-        const tips = {
-            'Top': '이 상의는 와이드 팬츠나 슬랙스와 매치하면 트렌디한 룩을 연출할 수 있습니다.',
-            'Bottom': '깔끔한 셔츠나 크롭 티셔츠와 함께 코디하여 밸런스를 맞춰보세요.',
-            'Outer': '이너를 심플하게 입어 아우터의 실루엣을 강조하는 것을 추천합니다.',
-            'Dress': '심플한 액세서리와 스니커즈를 매치하면 꾸안꾸 스타일이 완성됩니다.',
-            'Shoes': '전체적인 룩의 포인트가 될 수 있도록 컬러감을 통일해보세요.',
-            'Acc': '베이직한 룩에 이 아이템 하나로 스타일 지수를 높여보세요.'
-        };
-        return tips[category] || '당신만의 개성있는 스타일로 코디해보세요!';
+    const getStylingTip = (cat) => {
+        const tips = { 'Top': '와이드 팬츠와 매치해보세요.', 'Bottom': '깔끔한 상의와 밸런스를 맞춰보세요.', 'Outer': '이너를 심플하게 입는 것을 추천합니다.' };
+        return tips[cat] || '당신만의 스타일로 코디해보세요!';
     };
 
     const extractColors = (img) => {
@@ -498,38 +445,66 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- File & Form Handling ---
     dropZone.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', (e) => handleFileSelect(e.target.files[0]));
-    
-    const handleFileSelect = (file) => {
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (e) => {
             const img = new Image();
             img.src = e.target.result;
-            img.onload = async () => {
+            img.onload = () => {
                 dropZone.innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:contain; border-radius:8px;">`;
-                await analyzeImage(img);
+                analyzeImage(img);
             };
         };
         reader.readAsDataURL(file);
-    };
+    });
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const currentImg = dropZone.querySelector('img');
-        if (!currentImg) return alert('이미지를 업로드해주세요.');
+        if (!currentImg) return showToast('이미지를 업로드해주세요.', 'error');
 
         const newItemData = {
             name: nameInput.value,
             category: categoryInput.value,
-            imageSrc: currentImg.src
+            imageSrc: currentImg.src,
+            colors: analyzedColors
         };
 
-        await saveItemToCloud(newItemData);
-        loadItemsFromCloud();
+        if (currentUser) {
+            await saveItemToCloud(newItemData);
+            loadItems();
+        } else {
+            if (saveTrialItem(newItemData)) loadItems();
+        }
+
         form.reset();
         dropZone.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i><p>이미지를 업로드하세요</p>`;
         analysisContent.innerHTML = `<div class="placeholder-text">이미지 분석 결과가 여기에 표시됩니다.</div>`;
         colorPalette.innerHTML = '';
     });
+
+    // --- Filtering Logic ---
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            filterButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentCategoryFilter = btn.textContent;
+            loadItems();
+        });
+    });
+
+    // --- Theme Handling ---
+    const initTheme = () => {
+        const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
+        if (savedTheme === 'light') document.body.classList.add('light-mode');
+    };
+    themeToggle.addEventListener('click', () => {
+        const isLight = document.body.classList.toggle('light-mode');
+        localStorage.setItem(THEME_KEY, isLight ? 'light' : 'dark');
+    });
+    initTheme();
+
+    const categoryMap = { '상의': 'Top', '하의': 'Bottom', '아우터': 'Outer', '원피스': 'Dress', '신발': 'Shoes', '액세서리': 'Acc' };
 });
