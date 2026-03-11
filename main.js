@@ -212,23 +212,59 @@ document.addEventListener('DOMContentLoaded', async () => {
         switchToSignup.textContent = isSignupMode ? '로그인으로 돌아가기' : '회원가입';
     });
 
+    // --- UI Helpers: Toast Notification ---
+    const showToast = (message, type = 'info') => {
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.innerHTML = `
+            <div class="toast-content">
+                <i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i>
+                <span>${message}</span>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    };
+
     // Email/Password Auth
     authForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = authEmail.value;
         const password = authPassword.value;
 
+        if (password.length < 6) {
+            showToast('비밀번호는 최소 6자 이상이어야 합니다.', 'error');
+            return;
+        }
+
         try {
+            authSubmit.disabled = true;
+            authSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 처리 중...';
+            
             if (isSignupMode) {
                 await auth.createUserWithEmailAndPassword(email, password);
-                alert('회원가입 성공!');
+                showToast('회원가입이 완료되었습니다!', 'success');
             } else {
                 await auth.signInWithEmailAndPassword(email, password);
+                showToast('성공적으로 로그인했습니다.', 'success');
             }
             authModal.style.display = 'none';
             authForm.reset();
         } catch (error) {
-            alert(`인증 오류: ${error.message}`);
+            console.error("Auth Error:", error.code);
+            let msg = '인증 중 오류가 발생했습니다.';
+            if (error.code === 'auth/email-already-in-use') msg = '이미 사용 중인 이메일입니다.';
+            if (error.code === 'auth/wrong-password') msg = '비밀번호가 틀렸습니다.';
+            if (error.code === 'auth/user-not-found') msg = '존재하지 않는 계정입니다.';
+            if (error.code === 'auth/invalid-email') msg = '유효하지 않은 이메일 형식입니다.';
+            showToast(msg, 'error');
+        } finally {
+            authSubmit.disabled = false;
+            authSubmit.textContent = isSignupMode ? '가입하기' : '로그인';
         }
     });
 
@@ -237,9 +273,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const provider = new firebase.auth.GoogleAuthProvider();
         try {
             await auth.signInWithPopup(provider);
+            showToast('Google 로그인 성공!', 'success');
             authModal.style.display = 'none';
         } catch (error) {
-            alert(`Google 로그인 오류: ${error.message}`);
+            showToast(`Google 로그인 오류: ${error.message}`, 'error');
         }
     });
 
@@ -365,7 +402,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!net) return;
 
         const predictions = await net.classify(imgElement);
-        const results = { category: 'Acc', name: '새로운 아이템', confidence: 0, tags: [] };
+        const results = { category: 'Acc', name: '새로운 아이템', confidence: 0, tags: [], season: 'All Season', occasion: 'Casual' };
 
         if (predictions && predictions.length > 0) {
             const topResult = predictions[0];
@@ -374,23 +411,48 @@ document.addEventListener('DOMContentLoaded', async () => {
             results.tags = predictions.slice(0, 3).map(p => p.className.split(',')[0]);
 
             const label = topResult.className.toLowerCase();
-            if (label.match(/shirt|t-shirt|sweater|jersey|blouse|cardigan/)) results.category = 'Top';
-            else if (label.match(/jean|pant|short|skirt|trouser/)) results.category = 'Bottom';
-            else if (label.match(/coat|jacket|suit|parka/)) results.category = 'Outer';
-            else if (label.match(/dress|gown|robe/)) results.category = 'Dress';
-            else if (label.match(/shoe|sneaker|boot|sandal/)) results.category = 'Shoes';
+            if (label.match(/shirt|t-shirt|sweater|jersey|blouse|cardigan/)) {
+                results.category = 'Top';
+                results.occasion = label.match(/shirt|blouse/) ? 'Formal/Office' : 'Casual';
+                results.season = label.match(/sweater|cardigan/) ? 'Winter/Autumn' : 'Summer/Spring';
+            }
+            else if (label.match(/jean|pant|short|skirt|trouser/)) {
+                results.category = 'Bottom';
+                results.occasion = label.match(/trouser/) ? 'Formal' : 'Casual';
+            }
+            else if (label.match(/coat|jacket|suit|parka/)) {
+                results.category = 'Outer';
+                results.season = 'Winter/Autumn';
+                results.occasion = label.match(/suit|coat/) ? 'Formal' : 'Casual';
+            }
+            else if (label.match(/dress|gown|robe/)) {
+                results.category = 'Dress';
+                results.occasion = 'Formal/Date';
+            }
+            else if (label.match(/shoe|sneaker|boot|sandal/)) {
+                results.category = 'Shoes';
+            }
         }
 
-        renderAnalysis(results, extractColors(imgElement));
+        const colors = extractColors(imgElement);
+        renderAnalysis(results, colors);
         categoryInput.value = results.category;
         nameInput.value = results.name;
     };
 
     const renderAnalysis = (data, colors) => {
+        const harmony = getHarmony(colors[0]);
         analysisContent.innerHTML = `
             <div class="analysis-item"><span class="analysis-label">분석된 명칭</span><span class="analysis-value">${data.name}</span></div>
             <div class="analysis-item"><span class="analysis-label">카테고리 추정</span><span class="analysis-value">${data.category}</span></div>
-            <div class="analysis-item"><span class="analysis-label">AI 신뢰도</span><span class="analysis-value">${data.confidence}%</span></div>
+            <div class="analysis-item"><span class="analysis-label">추천 시즌</span><span class="analysis-value">${data.season}</span></div>
+            <div class="analysis-item"><span class="analysis-label">추천 TPO</span><span class="analysis-value">${data.occasion}</span></div>
+            <div class="analysis-item" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                <span class="analysis-label">Fashion Stylist Tip</span>
+                <span class="analysis-value" style="font-size: 0.85rem; font-weight: 500; color: #ffaa00;">
+                    ${getStylingTip(data.category, harmony)}
+                </span>
+            </div>
         `;
         colorPalette.innerHTML = '';
         colors.forEach(color => {
@@ -400,6 +462,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             chip.setAttribute('data-hex', color);
             colorPalette.appendChild(chip);
         });
+    };
+
+    const getHarmony = (hex) => {
+        if (!hex) return 'Neutral';
+        // Simple logic to suggest matching colors
+        return 'Match with Neutrals (Black/White/Grey)';
+    };
+
+    const getStylingTip = (category, harmony) => {
+        const tips = {
+            'Top': '이 상의는 와이드 팬츠나 슬랙스와 매치하면 트렌디한 룩을 연출할 수 있습니다.',
+            'Bottom': '깔끔한 셔츠나 크롭 티셔츠와 함께 코디하여 밸런스를 맞춰보세요.',
+            'Outer': '이너를 심플하게 입어 아우터의 실루엣을 강조하는 것을 추천합니다.',
+            'Dress': '심플한 액세서리와 스니커즈를 매치하면 꾸안꾸 스타일이 완성됩니다.',
+            'Shoes': '전체적인 룩의 포인트가 될 수 있도록 컬러감을 통일해보세요.',
+            'Acc': '베이직한 룩에 이 아이템 하나로 스타일 지수를 높여보세요.'
+        };
+        return tips[category] || '당신만의 개성있는 스타일로 코디해보세요!';
     };
 
     const extractColors = (img) => {
