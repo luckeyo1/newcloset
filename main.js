@@ -32,7 +32,7 @@ class ClosetItem extends HTMLElement {
                     transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
                     box-shadow: 0 10px 30px rgba(0,0,0,0.02); border: 1px solid #f0f0f0; height: 100%; display: flex; flex-direction: column;
                 }
-                .card:hover { transform: translateY(-10px) scale(1.02); box-shadow: 0 20px 50px rgba(0,0,0,0.08); border-color: #E8B4A0; }
+                .card:hover { transform: translateY(-10px); box-shadow: 0 20px 50px rgba(0,0,0,0.08); border-color: #E8B4A0; }
                 .img-box {
                     width: 100%; aspect-ratio: 1; background: #FAF7F2;
                     border-radius: 18px; overflow: hidden; display: flex; align-items: center; justify-content: center;
@@ -40,7 +40,7 @@ class ClosetItem extends HTMLElement {
                 img { max-width: 90%; max-height: 90%; object-fit: contain; }
                 .info { padding: 12px 4px; flex: 1; display: flex; flex-direction: column; }
                 .cat { font-size: 10px; font-weight: 800; color: #8C8378; text-transform: uppercase; letter-spacing: 1.5px; }
-                .name { font-size: 14px; font-weight: 700; color: #1C1C1E; margin-top: 4px; }
+                .name { font-size: 14px; font-weight: 700; color: #1C1C1E; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
                 .del { margin-top: auto; padding-top: 10px; font-size: 11px; color: #E8B4A0; cursor: pointer; border: none; background: none; font-weight: 700; text-align: left; }
             </style>
             <div class="card">
@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const authBtn = document.getElementById('auth-btn');
     const authModal = document.getElementById('auth-modal');
     const filterContainer = document.getElementById('category-filters');
-    const switchToSignup = document.getElementById('switch-to-signup');
+    const moodButtons = document.querySelectorAll('.mood-btn');
     
     const REMOVE_BG_API_KEY = '5Ayb2PWWmbR9L6WTUe8kebWG';
     let net = null;
@@ -81,13 +81,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentBase64Image = null;
     let allItems = [];
     let currentFilter = '전체';
+    let currentMood = 'Confidence';
 
-    // --- AI Load ---
+    // AI Load
     const loadAI = async () => {
         try {
             if (window.tf) await tf.ready();
             net = await mobilenet.load();
-            if (dropZone.querySelector('p')) dropZone.querySelector('p').textContent = 'AI READY — UPLOAD IMAGE';
+            if (dropZone.querySelector('p')) dropZone.querySelector('p').textContent = 'AI ONLINE — START ANALYSIS';
         } catch (e) { console.error('AI Load Error'); }
     };
     loadAI();
@@ -101,82 +102,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, 3000);
     };
 
-    // --- Auth UI Toggle ---
-    switchToSignup.addEventListener('click', (e) => {
-        e.preventDefault();
-        const submit = document.getElementById('auth-submit');
-        const title = document.getElementById('modal-title');
-        const desc = document.getElementById('modal-desc');
-        const switchText = document.getElementById('switch-text');
-        
-        const isLogin = submit.textContent === 'Sign In';
-        
-        if (isLogin) {
-            submit.textContent = 'Sign Up';
-            title.textContent = 'Create Account';
-            desc.textContent = '새로운 계정을 만들고 나만의 옷장을 클라우드에 저장하세요.';
-            switchText.textContent = '이미 계정이 있으신가요?';
-            e.target.textContent = 'Login here';
-        } else {
-            submit.textContent = 'Sign In';
-            title.textContent = 'Login';
-            desc.textContent = '서비스 이용을 위해 아이디와 비밀번호를 입력해주세요.';
-            switchText.textContent = '계정이 없으신가요?';
-            e.target.textContent = 'Create an account';
-        }
+    // --- Mood Selection ---
+    moodButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            moodButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentMood = btn.getAttribute('data-mood');
+            showToast(`오늘의 목표: ${currentMood} 모드 활성화`, 'info');
+            updateSmartLook(allItems);
+        });
     });
 
-    // --- Auth Logic ---
-    authBtn.addEventListener('click', () => {
-        if (currentUser) { auth.signOut(); showToast('로그아웃 되었습니다.'); }
-        else authModal.style.display = 'flex';
-    });
-
-    document.querySelector('.close-modal')?.addEventListener('click', () => authModal.style.display = 'none');
-
-    document.getElementById('auth-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const id = document.getElementById('auth-id').value;
-        const email = `${id.trim().toLowerCase()}@mycloset.com`;
-        const pw = document.getElementById('auth-password').value;
-        const isSignUp = document.getElementById('auth-submit').textContent === 'Sign Up';
-        
-        try {
-            if (isSignUp) {
-                await auth.createUserWithEmailAndPassword(email, pw);
-                showToast('회원가입을 환영합니다!', 'success');
-            } else {
-                await auth.signInWithEmailAndPassword(email, pw);
-                showToast('반갑습니다, ' + id + '님!', 'success');
-            }
-            authModal.style.display = 'none';
-        } catch (err) { 
-            let errorMsg = '인증 오류가 발생했습니다.';
-            if (err.code === 'auth/weak-password') errorMsg = '비밀번호는 6자 이상이어야 합니다.';
-            else if (err.code === 'auth/email-already-in-use') errorMsg = '이미 존재하는 아이디입니다.';
-            else if (err.code === 'auth/invalid-email') errorMsg = '아이디 형식이 올바르지 않습니다.';
-            else if (err.code === 'auth/user-not-found') errorMsg = '존재하지 않는 계정입니다.';
-            else if (err.code === 'auth/wrong-password') errorMsg = '비밀번호가 틀렸습니다.';
-            
-            showToast(errorMsg, 'error'); 
-        }
-    });
-
-    auth.onAuthStateChanged(user => {
-        currentUser = user;
-        authBtn.textContent = user ? 'LOGOUT' : 'LOGIN';
-        const userDisplay = document.getElementById('user-info');
-        if (userDisplay) userDisplay.textContent = user ? user.email.split('@')[0].toUpperCase() : '';
-        if (user) syncTrialToCloud();
-        loadItems();
-    });
-
-    // --- Image Processing ---
+    // --- Image Processing & Psychological Analysis ---
     dropZone.addEventListener('click', () => fileInput.click());
     
     fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0]; if (!file) return;
-        dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-wand-sparkles fa-spin" style="font-size:40px; color:#E8B4A0;"></i><p style="margin-top:15px;">ANALYZING STYLE...</p></div>`;
+        dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-wand-sparkles fa-spin" style="font-size:40px; color:#E8B4A0;"></i><p style="margin-top:15px;">이미지 최적화 및 심리 분석 중...</p></div>`;
         
         try {
             const formData = new FormData();
@@ -186,35 +128,53 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const reader = new FileReader();
             reader.onloadend = () => {
-                currentBase64Image = reader.result;
                 const img = new Image();
-                img.src = currentBase64Image;
-                img.onload = () => {
+                img.src = reader.result;
+                img.onload = async () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 600;
+                    let width = img.width; let height = img.height;
+                    if (width > MAX_WIDTH) { height = (MAX_WIDTH/width)*height; width = MAX_WIDTH; }
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
+                    currentBase64Image = canvas.toDataURL('image/jpeg', 0.7);
+                    
                     dropZone.innerHTML = `<img src="${currentBase64Image}" style="max-height:100%; max-width:100%; object-fit:contain; border-radius:15px;">`;
-                    if (net) analyze(img);
+                    if (net) analyzePsychology(img);
                 };
             };
             reader.readAsDataURL(blob);
-        } catch (err) { showToast('이미지 처리 중 오류 발생', 'error'); }
+        } catch (err) { showToast('이미지 처리 실패', 'error'); }
     });
 
-    const analyze = async (img) => {
+    const analyzePsychology = async (img) => {
         const predictions = await net.classify(img);
         const top = predictions[0];
         const label = top.className.toLowerCase();
-        
         nameInput.value = top.className.split(',')[0].toUpperCase();
         
-        if (label.match(/shirt|t-shirt|sweater|jersey|polo|tank top/)) categoryInput.value = 'Top';
-        else if (label.match(/jean|pant|short|skirt|trouser|legging/)) categoryInput.value = 'Bottom';
-        else if (label.match(/coat|jacket|suit|parka|blazer/)) categoryInput.value = 'Outer';
-        else if (label.match(/shoe|sneaker|boot|sandal|loaf/)) categoryInput.value = 'Shoes';
-        else if (label.match(/dress|gown|robe/)) categoryInput.value = 'Dress';
+        if (label.match(/shirt|t-shirt|sweater|jersey|polo/)) categoryInput.value = 'Top';
+        else if (label.match(/jean|pant|short|skirt|trouser/)) categoryInput.value = 'Bottom';
+        else if (label.match(/coat|jacket|suit|blazer/)) categoryInput.value = 'Outer';
+        else if (label.match(/shoe|sneaker|boot/)) categoryInput.value = 'Shoes';
+        else if (label.match(/dress|gown/)) categoryInput.value = 'Dress';
         else categoryInput.value = 'Acc';
+
+        const cat = categoryInput.value;
+        const mindsetTips = {
+            'Top': '상체에 힘을 주는 이 아이템은 대화 시 상대방에게 안정감을 줍니다.',
+            'Bottom': '하체의 실루엣을 잡아주는 이 옷은 당신의 발걸음에 확신을 더할 것입니다.',
+            'Outer': '외부로부터 당신을 보호하는 이 아우터는 전문적인 권위를 상징합니다.',
+            'Dress': '한 벌로 완성되는 원피스는 복잡한 생각을 정리하고 본연의 매력에 집중하게 합니다.',
+            'Shoes': '좋은 신발은 당신을 더 나은 장소로 데려가며, 자존감의 기초가 됩니다.'
+        };
 
         document.getElementById('analysis-content').innerHTML = `
             <div class="info-row"><span class="info-label">AI PREDICTION</span><span class="info-value">${nameInput.value}</span></div>
-            <div class="info-row"><span class="info-label">CATEGORY</span><span class="info-value">${categoryInput.value}</span></div>
+            <div class="info-row" style="background:rgba(232,180,160,0.1); border-radius:12px; padding:15px; margin-top:10px;">
+                <p style="font-size:12px; color:var(--deep); font-weight:600;">🧠 Mindset Tip:</p>
+                <p style="font-size:12px; color:var(--stone); line-height:1.5;">${mindsetTips[cat] || '오늘 당신의 기분을 전환해줄 소중한 아이템입니다.'}</p>
+            </div>
         `;
     };
 
@@ -233,22 +193,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             if (currentUser) {
                 await db.collection('wardrobes').doc(currentUser.uid).collection('items').add(itemData);
+                showToast('클라우드에 안전하게 저장되었습니다.', 'success');
             } else {
-                const trialItems = JSON.parse(localStorage.getItem('closet_v3') || '[]');
-                trialItems.push({ ...itemData, id: 'trial_' + Date.now() });
-                localStorage.setItem('closet_v3', JSON.stringify(trialItems));
+                const items = JSON.parse(localStorage.getItem('closet_v3') || '[]');
+                items.push({ ...itemData, id: 'trial_' + Date.now() });
+                localStorage.setItem('closet_v3', JSON.stringify(items));
+                showToast('체험판으로 저장되었습니다.', 'success');
             }
-            showToast('옷장에 저장되었습니다!', 'success');
-            form.reset(); 
-            currentBase64Image = null;
+            form.reset(); currentBase64Image = null;
             dropZone.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><p>READY TO ANALYZE</p>';
             loadItems();
-        } catch (err) { showToast('저장 중 오류 발생', 'error'); }
+        } catch (err) { showToast('저장 실패', 'error'); }
     });
 
-    // --- Filter & Render Logic ---
+    // --- Sync & Render ---
     const loadItems = async () => {
-        gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.5;">REFINING COLLECTION...</p>';
         try {
             if (currentUser) {
                 const snap = await db.collection('wardrobes').doc(currentUser.uid).collection('items').orderBy('createdAt', 'desc').get();
@@ -257,18 +216,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 allItems = JSON.parse(localStorage.getItem('closet_v3') || '[]');
             }
+            document.getElementById('item-count').textContent = allItems.length;
             renderGallery();
             updateSmartLook(allItems);
-        } catch (e) { gallery.innerHTML = '데이터 로딩 중 오류 발생'; }
+        } catch (e) { console.error('Load Error'); }
     };
 
     const renderGallery = () => {
         const filtered = currentFilter === '전체' ? allItems : allItems.filter(i => i.category === currentFilter);
         gallery.innerHTML = '';
-        if (filtered.length === 0) {
-            gallery.innerHTML = `<p style="grid-column:1/-1; text-align:center; opacity:0.5; padding:40px;">등록된 아이템이 없습니다.</p>`;
-            return;
-        }
         filtered.forEach(data => {
             const el = document.createElement('closet-item');
             el.setAttribute('name', data.name); el.setAttribute('category', data.category);
@@ -278,65 +234,76 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     filterContainer.addEventListener('click', (e) => {
-        const target = e.target.closest('span');
-        if (!target) return;
-        
+        const target = e.target.closest('span'); if (!target) return;
         document.querySelectorAll('#category-filters span').forEach(s => {
-            s.classList.remove('active');
-            s.style.background = '#fff'; s.style.color = '#000';
+            s.classList.remove('active'); s.style.background = '#fff'; s.style.color = '#000';
         });
-        
-        target.classList.add('active');
-        target.style.background = 'var(--charcoal)'; target.style.color = 'var(--cream)';
-        
+        target.classList.add('active'); target.style.background = 'var(--charcoal)'; target.style.color = 'var(--cream)';
         currentFilter = target.getAttribute('data-filter');
         renderGallery();
     });
-
-    const syncTrialToCloud = async () => {
-        const items = JSON.parse(localStorage.getItem('closet_v3') || '[]');
-        if (items.length > 0 && currentUser) {
-            try {
-                for (const item of items) {
-                    delete item.id;
-                    await db.collection('wardrobes').doc(currentUser.uid).collection('items').add(item);
-                }
-                localStorage.removeItem('closet_v3');
-                loadItems();
-            } catch (err) { console.error('Sync error'); }
-        }
-    };
 
     const updateSmartLook = (items) => {
         const grid = document.getElementById('smart-coord-grid');
         const tops = items.filter(i => i.category === 'Top');
         const bots = items.filter(i => i.category === 'Bottom');
+        
         if (tops.length > 0 && bots.length > 0) {
+            const t = tops[0]; const b = bots[0];
+            const moodMessages = {
+                'Confidence': `이 조합은 오늘 당신을 더 단단하고 강력한 전문가로 인지하게 합니다. 중요한 결정을 앞두고 있다면 적극 추천합니다.`,
+                'Calm': `부드러운 실루엣의 조화로 마음의 평온을 찾으세요. 오늘은 당신의 내면에 집중하기 좋은 날입니다.`,
+                'Creative': `고정관념을 깨는 믹스매치로 새로운 영감을 얻으세요. 주변 사람들에게도 창의적인 자극을 줄 것입니다.`,
+                'Social': `상대방에게 신뢰와 따뜻함을 동시에 주는 조합입니다. 새로운 사람과의 만남에서 긍정적인 첫인상을 남기세요.`
+            };
+
             grid.innerHTML = `
-                <div style="display:flex; gap:10px; margin-bottom:15px;">
-                    <img src="${tops[0].imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;">
-                    <img src="${bots[0].imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;">
+                <div style="display:flex; gap:10px; margin-bottom:20px;">
+                    <img src="${t.imageSrc}" style="width:80px; height:80px; border-radius:15px; object-fit:cover; border:2px solid var(--accent);">
+                    <img src="${b.imageSrc}" style="width:80px; height:80px; border-radius:15px; object-fit:cover; border:2px solid var(--accent);">
                 </div>
-                <p style="font-size:13px; font-weight:700; color:var(--deep);">DAILY LUXE MATCH</p>
-                <p style="font-size:12px; color:var(--stone); line-height:1.4;">${tops[0].name}와 ${bots[0].name}의 우아한 조화입니다.</p>`;
+                <p style="font-size:14px; font-weight:700; color:var(--deep); margin-bottom:10px;">✨ FOR YOUR ${currentMood.toUpperCase()}</p>
+                <p style="font-size:12px; color:var(--stone); line-height:1.6;">${moodMessages[currentMood]}</p>
+            `;
         }
     };
 
-    document.addEventListener('delete-item', async (e) => {
-        if (!confirm('삭제하시겠습니까?')) return;
-        const id = e.detail.id;
-        try {
-            if (id.startsWith('trial_')) {
-                const items = JSON.parse(localStorage.getItem('closet_v3') || '[]').filter(i => i.id !== id);
-                localStorage.setItem('closet_v3', JSON.stringify(items));
-            } else {
-                await db.collection('wardrobes').doc(currentUser.uid).collection('items').doc(id).delete();
+    const syncTrialToCloud = async () => {
+        const items = JSON.parse(localStorage.getItem('closet_v3') || '[]');
+        if (items.length > 0 && currentUser) {
+            for (const item of items) {
+                delete item.id;
+                await db.collection('wardrobes').doc(currentUser.uid).collection('items').add(item);
             }
+            localStorage.removeItem('closet_v3');
             loadItems();
-        } catch (err) { showToast('삭제 실패', 'error'); }
-    });
+        }
+    };
 
-    document.getElementById('theme-toggle').addEventListener('click', () => {
-        document.body.classList.toggle('light-mode');
+    // Auth Modal Handlers
+    authBtn.addEventListener('click', () => {
+        if (currentUser) { auth.signOut(); showToast('LOGGED OUT'); }
+        else authModal.style.display = 'flex';
+    });
+    document.querySelector('.close-modal')?.addEventListener('click', () => authModal.style.display = 'none');
+    document.getElementById('auth-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('auth-id').value;
+        const email = `${id.trim().toLowerCase()}@mycloset.com`;
+        const pw = document.getElementById('auth-password').value;
+        const isLogin = document.getElementById('auth-submit').textContent === 'Sign In';
+        try {
+            if (isLogin) await auth.signInWithEmailAndPassword(email, pw);
+            else await auth.createUserWithEmailAndPassword(email, pw);
+            authModal.style.display = 'none';
+        } catch (err) { showToast(err.message, 'error'); }
+    });
+    document.getElementById('switch-to-signup').addEventListener('click', (e) => {
+        e.preventDefault();
+        const submit = document.getElementById('auth-submit');
+        const isLogin = submit.textContent === 'Sign In';
+        submit.textContent = isLogin ? 'Sign Up' : 'Sign In';
+        document.getElementById('modal-title').textContent = isLogin ? 'Create Account' : 'Login';
+        e.target.textContent = isLogin ? 'Login here' : 'Create an account';
     });
 });
