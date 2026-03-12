@@ -32,7 +32,7 @@ class ClosetItem extends HTMLElement {
                     transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
                     box-shadow: 0 10px 30px rgba(0,0,0,0.02); border: 1px solid #f0f0f0; height: 100%; display: flex; flex-direction: column;
                 }
-                .card:hover { transform: translateY(-10px); box-shadow: 0 20px 50px rgba(0,0,0,0.08); border-color: #E8B4A0; }
+                .card:hover { transform: translateY(-10px) scale(1.02); box-shadow: 0 20px 50px rgba(0,0,0,0.08); border-color: #E8B4A0; }
                 .img-box {
                     width: 100%; aspect-ratio: 1; background: #FAF7F2;
                     border-radius: 18px; overflow: hidden; display: flex; align-items: center; justify-content: center;
@@ -73,12 +73,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const authBtn = document.getElementById('auth-btn');
     const authModal = document.getElementById('auth-modal');
     const filterContainer = document.getElementById('category-filters');
+    const switchToSignup = document.getElementById('switch-to-signup');
     
     const REMOVE_BG_API_KEY = '5Ayb2PWWmbR9L6WTUe8kebWG';
     let net = null;
     let currentUser = null;
     let currentBase64Image = null;
-    let allItems = []; // 캐시된 아이템 리스트
+    let allItems = [];
     let currentFilter = '전체';
 
     // --- AI Load ---
@@ -94,15 +95,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     const showToast = (msg, type = 'info') => {
         const t = document.createElement('div');
         t.className = 'toast show';
-        t.style.background = type === 'error' ? '#ff4d4d' : '#1C1C1E';
+        t.style.background = type === 'error' ? '#ff4d4d' : (type === 'success' ? '#4CAF50' : '#1C1C1E');
         t.textContent = msg;
         document.body.appendChild(t);
         setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, 3000);
     };
 
+    // --- Auth UI Toggle ---
+    switchToSignup.addEventListener('click', (e) => {
+        e.preventDefault();
+        const submit = document.getElementById('auth-submit');
+        const title = document.getElementById('modal-title');
+        const desc = document.getElementById('modal-desc');
+        const switchText = document.getElementById('switch-text');
+        
+        const isLogin = submit.textContent === 'Sign In';
+        
+        if (isLogin) {
+            submit.textContent = 'Sign Up';
+            title.textContent = 'Create Account';
+            desc.textContent = '새로운 계정을 만들고 나만의 옷장을 클라우드에 저장하세요.';
+            switchText.textContent = '이미 계정이 있으신가요?';
+            e.target.textContent = 'Login here';
+        } else {
+            submit.textContent = 'Sign In';
+            title.textContent = 'Login';
+            desc.textContent = '서비스 이용을 위해 아이디와 비밀번호를 입력해주세요.';
+            switchText.textContent = '계정이 없으신가요?';
+            e.target.textContent = 'Create an account';
+        }
+    });
+
     // --- Auth Logic ---
     authBtn.addEventListener('click', () => {
-        if (currentUser) { auth.signOut(); showToast('LOGGED OUT'); }
+        if (currentUser) { auth.signOut(); showToast('로그아웃 되었습니다.'); }
         else authModal.style.display = 'flex';
     });
 
@@ -113,12 +139,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         const id = document.getElementById('auth-id').value;
         const email = `${id.trim().toLowerCase()}@mycloset.com`;
         const pw = document.getElementById('auth-password').value;
-        const isLogin = document.getElementById('auth-submit').textContent === 'Sign In';
+        const isSignUp = document.getElementById('auth-submit').textContent === 'Sign Up';
+        
         try {
-            if (isLogin) await auth.signInWithEmailAndPassword(email, pw);
-            else await auth.createUserWithEmailAndPassword(email, pw);
+            if (isSignUp) {
+                await auth.createUserWithEmailAndPassword(email, pw);
+                showToast('회원가입을 환영합니다!', 'success');
+            } else {
+                await auth.signInWithEmailAndPassword(email, pw);
+                showToast('반갑습니다, ' + id + '님!', 'success');
+            }
             authModal.style.display = 'none';
-        } catch (err) { showToast('AUTH ERROR: ' + err.message, 'error'); }
+        } catch (err) { 
+            let errorMsg = '인증 오류가 발생했습니다.';
+            if (err.code === 'auth/weak-password') errorMsg = '비밀번호는 6자 이상이어야 합니다.';
+            else if (err.code === 'auth/email-already-in-use') errorMsg = '이미 존재하는 아이디입니다.';
+            else if (err.code === 'auth/invalid-email') errorMsg = '아이디 형식이 올바르지 않습니다.';
+            else if (err.code === 'auth/user-not-found') errorMsg = '존재하지 않는 계정입니다.';
+            else if (err.code === 'auth/wrong-password') errorMsg = '비밀번호가 틀렸습니다.';
+            
+            showToast(errorMsg, 'error'); 
+        }
     });
 
     auth.onAuthStateChanged(user => {
@@ -130,7 +171,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadItems();
     });
 
-    // --- Image Processing & Category Analysis ---
+    // --- Image Processing ---
     dropZone.addEventListener('click', () => fileInput.click());
     
     fileInput.addEventListener('change', async (e) => {
@@ -154,7 +195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 };
             };
             reader.readAsDataURL(blob);
-        } catch (err) { showToast('PROCESS ERROR'); }
+        } catch (err) { showToast('이미지 처리 중 오류 발생', 'error'); }
     });
 
     const analyze = async (img) => {
@@ -164,7 +205,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         nameInput.value = top.className.split(',')[0].toUpperCase();
         
-        // Advanced Category Mapping
         if (label.match(/shirt|t-shirt|sweater|jersey|polo|tank top/)) categoryInput.value = 'Top';
         else if (label.match(/jean|pant|short|skirt|trouser|legging/)) categoryInput.value = 'Bottom';
         else if (label.match(/coat|jacket|suit|parka|blazer/)) categoryInput.value = 'Outer';
@@ -181,7 +221,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Core Save Logic ---
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (!currentBase64Image) return showToast('UPLOAD IMAGE FIRST', 'error');
+        if (!currentBase64Image) return showToast('이미지를 먼저 업로드하세요.', 'error');
         
         const itemData = { 
             name: nameInput.value || 'NEW ITEM', 
@@ -198,17 +238,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 trialItems.push({ ...itemData, id: 'trial_' + Date.now() });
                 localStorage.setItem('closet_v3', JSON.stringify(trialItems));
             }
-            showToast('ADDED TO COLLECTION', 'success');
+            showToast('옷장에 저장되었습니다!', 'success');
             form.reset(); 
             currentBase64Image = null;
             dropZone.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><p>READY TO ANALYZE</p>';
             loadItems();
-        } catch (err) { showToast('SAVE ERROR', 'error'); }
+        } catch (err) { showToast('저장 중 오류 발생', 'error'); }
     });
 
     // --- Filter & Render Logic ---
     const loadItems = async () => {
-        gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.5;">LOADING...</p>';
+        gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.5;">REFINING COLLECTION...</p>';
         try {
             if (currentUser) {
                 const snap = await db.collection('wardrobes').doc(currentUser.uid).collection('items').orderBy('createdAt', 'desc').get();
@@ -219,14 +259,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             renderGallery();
             updateSmartLook(allItems);
-        } catch (e) { gallery.innerHTML = 'ERROR LOADING ITEMS'; }
+        } catch (e) { gallery.innerHTML = '데이터 로딩 중 오류 발생'; }
     };
 
     const renderGallery = () => {
         const filtered = currentFilter === '전체' ? allItems : allItems.filter(i => i.category === currentFilter);
         gallery.innerHTML = '';
         if (filtered.length === 0) {
-            gallery.innerHTML = `<p style="grid-column:1/-1; text-align:center; opacity:0.5; padding:40px;">No items found in ${currentFilter}.</p>`;
+            gallery.innerHTML = `<p style="grid-column:1/-1; text-align:center; opacity:0.5; padding:40px;">등록된 아이템이 없습니다.</p>`;
             return;
         }
         filtered.forEach(data => {
@@ -237,7 +277,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     };
 
-    // Filter Button Clicks
     filterContainer.addEventListener('click', (e) => {
         const target = e.target.closest('span');
         if (!target) return;
@@ -257,12 +296,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const syncTrialToCloud = async () => {
         const items = JSON.parse(localStorage.getItem('closet_v3') || '[]');
         if (items.length > 0 && currentUser) {
-            for (const item of items) {
-                delete item.id;
-                await db.collection('wardrobes').doc(currentUser.uid).collection('items').add(item);
-            }
-            localStorage.removeItem('closet_v3');
-            loadItems();
+            try {
+                for (const item of items) {
+                    delete item.id;
+                    await db.collection('wardrobes').doc(currentUser.uid).collection('items').add(item);
+                }
+                localStorage.removeItem('closet_v3');
+                loadItems();
+            } catch (err) { console.error('Sync error'); }
         }
     };
 
@@ -276,13 +317,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <img src="${tops[0].imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;">
                     <img src="${bots[0].imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;">
                 </div>
-                <p style="font-size:13px; font-weight:700;">DAILY LUXE MATCH</p>
-                <p style="font-size:12px; color:var(--stone);">${tops[0].name} + ${bots[0].name}</p>`;
+                <p style="font-size:13px; font-weight:700; color:var(--deep);">DAILY LUXE MATCH</p>
+                <p style="font-size:12px; color:var(--stone); line-height:1.4;">${tops[0].name}와 ${bots[0].name}의 우아한 조화입니다.</p>`;
         }
     };
 
     document.addEventListener('delete-item', async (e) => {
-        if (!confirm('REMOVE?')) return;
+        if (!confirm('삭제하시겠습니까?')) return;
         const id = e.detail.id;
         try {
             if (id.startsWith('trial_')) {
@@ -292,17 +333,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await db.collection('wardrobes').doc(currentUser.uid).collection('items').doc(id).delete();
             }
             loadItems();
-        } catch (err) { showToast('DELETE ERROR'); }
+        } catch (err) { showToast('삭제 실패', 'error'); }
     });
 
-    document.getElementById('theme-toggle').addEventListener('click', () => document.body.classList.toggle('light-mode'));
-    document.getElementById('switch-to-signup').addEventListener('click', (e) => {
-        e.preventDefault();
-        const submit = document.getElementById('auth-submit');
-        const title = document.getElementById('modal-title');
-        const isLogin = submit.textContent === 'Sign In';
-        submit.textContent = isLogin ? 'Sign Up' : 'Sign In';
-        title.textContent = isLogin ? 'Create Account' : 'Login';
-        e.target.textContent = isLogin ? 'Already have an account?' : 'Create an account';
+    document.getElementById('theme-toggle').addEventListener('click', () => {
+        document.body.classList.toggle('light-mode');
     });
 });

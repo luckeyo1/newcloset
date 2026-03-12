@@ -93,17 +93,29 @@
 
     <!-- Auth Modal -->
     <div id="auth-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(10px); z-index:2000; align-items:center; justify-content:center;">
-        <div class="glass-card" style="width:400px; padding:50px;">
-            <span class="close-modal" style="position:absolute; right:30px; top:20px; cursor:pointer;">✕</span>
+        <div class="glass-card" style="width:400px; padding:50px; position:relative;">
+            <span class="close-modal" style="position:absolute; right:30px; top:20px; cursor:pointer; font-size:20px;">✕</span>
             <h2 class="serif" id="modal-title" style="font-size:32px; margin-bottom:10px;">Login</h2>
+            <p id="modal-desc" style="font-size:13px; color:var(--stone); margin-bottom:25px;">서비스 이용을 위해 아이디와 비밀번호를 입력해주세요.</p>
+            
             <form id="auth-form" style="display:flex; flex-direction:column; gap:15px;">
-                <input type="text" id="auth-id" placeholder="ID (Username)" class="btn-luxe" style="background:#fff; color:#000; text-align:left; border:1px solid #eee;">
-                <input type="password" id="auth-password" placeholder="Password" class="btn-luxe" style="background:#fff; color:#000; text-align:left; border:1px solid #eee;">
-                <button type="submit" id="auth-submit" class="btn-luxe">Sign In</button>
+                <div class="input-group">
+                    <label style="font-size:11px; font-weight:700; color:var(--stone); display:block; margin-bottom:5px;">USER ID</label>
+                    <input type="text" id="auth-id" placeholder="아이디를 입력하세요" class="btn-luxe" style="background:#fff; color:#000; text-align:left; border:1px solid #eee; width:100%;" required>
+                </div>
+                <div class="input-group">
+                    <label style="font-size:11px; font-weight:700; color:var(--stone); display:block; margin-bottom:5px;">PASSWORD</label>
+                    <input type="password" id="auth-password" placeholder="6자 이상 입력하세요" class="btn-luxe" style="background:#fff; color:#000; text-align:left; border:1px solid #eee; width:100%;" required>
+                </div>
+                <button type="submit" id="auth-submit" class="btn-luxe" style="margin-top:10px;">Sign In</button>
             </form>
-            <p style="margin-top:20px; font-size:13px; text-align:center;">
-                <a href="#" id="switch-to-signup" style="color:var(--blush); font-weight:700; text-decoration:none;">Create an account</a>
-            </p>
+            
+            <div style="margin-top:25px; padding-top:20px; border-top:1px solid #eee; text-align:center;">
+                <p style="font-size:13px; color:var(--stone);">
+                    <span id="switch-text">계정이 없으신가요?</span> 
+                    <a href="#" id="switch-to-signup" style="color:var(--blush); font-weight:700; text-decoration:none; margin-left:5px;">Create an account</a>
+                </p>
+            </div>
         </div>
     </div>
 
