@@ -72,11 +72,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const gallery = document.getElementById('closet-gallery');
     const authBtn = document.getElementById('auth-btn');
     const authModal = document.getElementById('auth-modal');
+    const filterContainer = document.getElementById('category-filters');
     
     const REMOVE_BG_API_KEY = '5Ayb2PWWmbR9L6WTUe8kebWG';
     let net = null;
     let currentUser = null;
-    let currentBase64Image = null; // 영구 저장을 위한 Base64 데이터
+    let currentBase64Image = null;
+    let allItems = []; // 캐시된 아이템 리스트
+    let currentFilter = '전체';
 
     // --- AI Load ---
     const loadAI = async () => {
@@ -127,21 +130,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadItems();
     });
 
-    // --- Image Processing ---
+    // --- Image Processing & Category Analysis ---
     dropZone.addEventListener('click', () => fileInput.click());
     
     fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0]; if (!file) return;
-        dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-wand-sparkles fa-spin" style="font-size:40px; color:#E8B4A0;"></i><p style="margin-top:15px;">ANALYZING...</p></div>`;
+        dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-wand-sparkles fa-spin" style="font-size:40px; color:#E8B4A0;"></i><p style="margin-top:15px;">ANALYZING STYLE...</p></div>`;
         
         try {
             const formData = new FormData();
             formData.append('image_file', file);
             const resp = await fetch('https://api.remove.bg/v1.0/removebg', { method: 'POST', headers: { 'X-Api-Key': REMOVE_BG_API_KEY }, body: formData }).catch(() => null);
-            
             const blob = (resp && resp.ok) ? await resp.blob() : file;
             
-            // Convert to Base64 for permanent saving
             const reader = new FileReader();
             reader.onloadend = () => {
                 currentBase64Image = reader.result;
@@ -159,12 +160,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const analyze = async (img) => {
         const predictions = await net.classify(img);
         const top = predictions[0];
-        nameInput.value = top.className.split(',')[0].toUpperCase();
         const label = top.className.toLowerCase();
-        if (label.match(/shirt|t-shirt|sweater|jersey/)) categoryInput.value = 'Top';
-        else if (label.match(/jean|pant|short|skirt/)) categoryInput.value = 'Bottom';
-        else if (label.match(/coat|jacket|suit/)) categoryInput.value = 'Outer';
-        else if (label.match(/shoe|sneaker/)) categoryInput.value = 'Shoes';
+        
+        nameInput.value = top.className.split(',')[0].toUpperCase();
+        
+        // Advanced Category Mapping
+        if (label.match(/shirt|t-shirt|sweater|jersey|polo|tank top/)) categoryInput.value = 'Top';
+        else if (label.match(/jean|pant|short|skirt|trouser|legging/)) categoryInput.value = 'Bottom';
+        else if (label.match(/coat|jacket|suit|parka|blazer/)) categoryInput.value = 'Outer';
+        else if (label.match(/shoe|sneaker|boot|sandal|loaf/)) categoryInput.value = 'Shoes';
+        else if (label.match(/dress|gown|robe/)) categoryInput.value = 'Dress';
+        else categoryInput.value = 'Acc';
+
         document.getElementById('analysis-content').innerHTML = `
             <div class="info-row"><span class="info-label">AI PREDICTION</span><span class="info-value">${nameInput.value}</span></div>
             <div class="info-row"><span class="info-label">CATEGORY</span><span class="info-value">${categoryInput.value}</span></div>
@@ -187,43 +194,65 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (currentUser) {
                 await db.collection('wardrobes').doc(currentUser.uid).collection('items').add(itemData);
             } else {
-                const items = JSON.parse(localStorage.getItem('closet_v3') || '[]');
-                items.push({ ...itemData, id: 'trial_' + Date.now() });
-                localStorage.setItem('closet_v3', JSON.stringify(items));
+                const trialItems = JSON.parse(localStorage.getItem('closet_v3') || '[]');
+                trialItems.push({ ...itemData, id: 'trial_' + Date.now() });
+                localStorage.setItem('closet_v3', JSON.stringify(trialItems));
             }
-            showToast('SUCCESSFULLY SAVED', 'success');
+            showToast('ADDED TO COLLECTION', 'success');
             form.reset(); 
             currentBase64Image = null;
             dropZone.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><p>READY TO ANALYZE</p>';
             loadItems();
-        } catch (err) { 
-            console.error('Save error:', err);
-            showToast('SAVE ERROR: Check Firestore Rules', 'error'); 
-        }
+        } catch (err) { showToast('SAVE ERROR', 'error'); }
     });
 
+    // --- Filter & Render Logic ---
     const loadItems = async () => {
         gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.5;">LOADING...</p>';
-        let items = [];
         try {
             if (currentUser) {
                 const snap = await db.collection('wardrobes').doc(currentUser.uid).collection('items').orderBy('createdAt', 'desc').get();
-                snap.forEach(doc => items.push({ ...doc.data(), id: doc.id }));
+                allItems = [];
+                snap.forEach(doc => allItems.push({ ...doc.data(), id: doc.id }));
             } else {
-                items = JSON.parse(localStorage.getItem('closet_v3') || '[]');
+                allItems = JSON.parse(localStorage.getItem('closet_v3') || '[]');
             }
-            
-            gallery.innerHTML = '';
-            if (items.length === 0) gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.5;">옷장이 비어있습니다.</p>';
-            items.forEach(data => {
-                const el = document.createElement('closet-item');
-                el.setAttribute('name', data.name); el.setAttribute('category', data.category);
-                el.setAttribute('image-src', data.imageSrc); el.setAttribute('item-id', data.id);
-                gallery.appendChild(el);
-            });
-            updateSmartLook(items);
+            renderGallery();
+            updateSmartLook(allItems);
         } catch (e) { gallery.innerHTML = 'ERROR LOADING ITEMS'; }
     };
+
+    const renderGallery = () => {
+        const filtered = currentFilter === '전체' ? allItems : allItems.filter(i => i.category === currentFilter);
+        gallery.innerHTML = '';
+        if (filtered.length === 0) {
+            gallery.innerHTML = `<p style="grid-column:1/-1; text-align:center; opacity:0.5; padding:40px;">No items found in ${currentFilter}.</p>`;
+            return;
+        }
+        filtered.forEach(data => {
+            const el = document.createElement('closet-item');
+            el.setAttribute('name', data.name); el.setAttribute('category', data.category);
+            el.setAttribute('image-src', data.imageSrc); el.setAttribute('item-id', data.id);
+            gallery.appendChild(el);
+        });
+    };
+
+    // Filter Button Clicks
+    filterContainer.addEventListener('click', (e) => {
+        const target = e.target.closest('span');
+        if (!target) return;
+        
+        document.querySelectorAll('#category-filters span').forEach(s => {
+            s.classList.remove('active');
+            s.style.background = '#fff'; s.style.color = '#000';
+        });
+        
+        target.classList.add('active');
+        target.style.background = 'var(--charcoal)'; target.style.color = 'var(--cream)';
+        
+        currentFilter = target.getAttribute('data-filter');
+        renderGallery();
+    });
 
     const syncTrialToCloud = async () => {
         const items = JSON.parse(localStorage.getItem('closet_v3') || '[]');
@@ -242,20 +271,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tops = items.filter(i => i.category === 'Top');
         const bots = items.filter(i => i.category === 'Bottom');
         if (tops.length > 0 && bots.length > 0) {
-            grid.innerHTML = `<div style="display:flex; gap:10px;"><img src="${tops[0].imageSrc}" style="width:50px; height:50px; border-radius:8px;"><img src="${bots[0].imageSrc}" style="width:50px; height:50px; border-radius:8px;"></div><p style="font-size:12px; margin-top:10px;"><b>AI MATCH:</b> ${tops[0].name} + ${bots[0].name}</p>`;
+            grid.innerHTML = `
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <img src="${tops[0].imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;">
+                    <img src="${bots[0].imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;">
+                </div>
+                <p style="font-size:13px; font-weight:700;">DAILY LUXE MATCH</p>
+                <p style="font-size:12px; color:var(--stone);">${tops[0].name} + ${bots[0].name}</p>`;
         }
     };
 
     document.addEventListener('delete-item', async (e) => {
         if (!confirm('REMOVE?')) return;
         const id = e.detail.id;
-        if (id.startsWith('trial_')) {
-            const items = JSON.parse(localStorage.getItem('closet_v3') || '[]').filter(i => i.id !== id);
-            localStorage.setItem('closet_v3', JSON.stringify(items));
-        } else {
-            await db.collection('wardrobes').doc(currentUser.uid).collection('items').doc(id).delete();
-        }
-        loadItems();
+        try {
+            if (id.startsWith('trial_')) {
+                const items = JSON.parse(localStorage.getItem('closet_v3') || '[]').filter(i => i.id !== id);
+                localStorage.setItem('closet_v3', JSON.stringify(items));
+            } else {
+                await db.collection('wardrobes').doc(currentUser.uid).collection('items').doc(id).delete();
+            }
+            loadItems();
+        } catch (err) { showToast('DELETE ERROR'); }
     });
 
     document.getElementById('theme-toggle').addEventListener('click', () => document.body.classList.toggle('light-mode'));

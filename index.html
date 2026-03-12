@@ -54,13 +54,16 @@
             </div>
 
             <!-- Gallery Grid -->
-            <div class="gallery-header" style="margin-top:80px; display:flex; justify-content:space-between; align-items:center;">
+            <div class="gallery-header" style="margin-top:80px; display:flex; flex-direction:column; gap:20px;">
                 <h2 class="serif" style="font-size:32px;">My Collection</h2>
-                <div class="gallery-filters" style="display:flex; gap:10px;">
-                    <span class="active">전체</span>
-                    <span>상의</span>
-                    <span>하의</span>
-                    <span>아우터</span>
+                <div class="gallery-filters" id="category-filters" style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <span class="btn-luxe active" data-filter="전체" style="padding: 8px 20px; font-size: 12px; background: var(--charcoal); color: var(--cream);">ALL</span>
+                    <span class="btn-luxe" data-filter="Top" style="padding: 8px 20px; font-size: 12px; background: #fff; color: #000; border: 1px solid #eee;">TOP</span>
+                    <span class="btn-luxe" data-filter="Bottom" style="padding: 8px 20px; font-size: 12px; background: #fff; color: #000; border: 1px solid #eee;">BOTTOM</span>
+                    <span class="btn-luxe" data-filter="Outer" style="padding: 8px 20px; font-size: 12px; background: #fff; color: #000; border: 1px solid #eee;">OUTER</span>
+                    <span class="btn-luxe" data-filter="Dress" style="padding: 8px 20px; font-size: 12px; background: #fff; color: #000; border: 1px solid #eee;">DRESS</span>
+                    <span class="btn-luxe" data-filter="Shoes" style="padding: 8px 20px; font-size: 12px; background: #fff; color: #000; border: 1px solid #eee;">SHOES</span>
+                    <span class="btn-luxe" data-filter="Acc" style="padding: 8px 20px; font-size: 12px; background: #fff; color: #000; border: 1px solid #eee;">ACC</span>
                 </div>
             </div>
             <div id="closet-gallery" class="closet-grid">
