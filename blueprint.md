@@ -21,14 +21,19 @@ A modern, AI-powered digital closet application that allows users to upload, cat
 - **Hosting:** Cloudflare Pages (https://newcloset.pages.dev/)
 - **Repository:** GitHub (https://github.com/luckeyo1/newcloset)
 
-## **4. Current Progress & Roadmap**
+## **4. Backend Configuration (Firebase)**
+- **Authentication:** Email/Password provider must be enabled in Firebase Console.
+- **Database:** Cloud Firestore in "Test Mode" or with appropriate security rules.
+- **API Key:** Valid Web API Key from Project Settings.
+
+## **5. Current Progress & Roadmap**
 - [x] **Basic Structure:** HTML/CSS/JS scaffolding complete.
 - [x] **Local AI:** MobileNet integration for basic categorization.
-- [x] **AdSense Optimization:** Essential pages (About, Contact, Privacy, Terms) and professional footer added.
-- [x] **Repository Sync:** Pushed to GitHub (luckeyo1/newcloset).
-- [ ] **API Integration:** Connect to a specialized Fashion Analysis API for "Deep Analysis".
+- [x] **Firebase Integration:** API Key and Config updated in `main.js`.
+- [x] **AdSense Optimization:** Essential pages and footer added.
+- [ ] **Backend Activation:** Enable Auth & Firestore in Firebase Console (Manual Step).
+- [ ] **API Integration:** Connect to a specialized Fashion Analysis API.
 - [ ] **Color Palette:** Implement canvas-based color extraction.
-- [ ] **UI/UX Enhancement:** Apply premium shadows, glassmorphism, and "Glow" effects.
 
 ## **6. AdSense Compliance Features**
 - **Navigation:** Clear header and footer navigation menus.
