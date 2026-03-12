@@ -30,18 +30,18 @@ class ClosetItem extends HTMLElement {
                 .card {
                     background: #fff; border-radius: 24px; padding: 12px;
                     transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.02); border: 1px solid #f0f0f0;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.02); border: 1px solid #f0f0f0; height: 100%; display: flex; flex-direction: column;
                 }
-                .card:hover { transform: translateY(-10px) scale(1.02); box-shadow: 0 20px 50px rgba(0,0,0,0.08); border-color: #E8B4A0; }
+                .card:hover { transform: translateY(-10px); box-shadow: 0 20px 50px rgba(0,0,0,0.08); border-color: #E8B4A0; }
                 .img-box {
                     width: 100%; aspect-ratio: 1; background: #FAF7F2;
                     border-radius: 18px; overflow: hidden; display: flex; align-items: center; justify-content: center;
                 }
-                img { max-width: 85%; max-height: 85%; object-fit: contain; filter: drop-shadow(0 10px 15px rgba(0,0,0,0.05)); }
-                .info { padding: 12px 4px; }
+                img { max-width: 90%; max-height: 90%; object-fit: contain; }
+                .info { padding: 12px 4px; flex: 1; display: flex; flex-direction: column; }
                 .cat { font-size: 10px; font-weight: 800; color: #8C8378; text-transform: uppercase; letter-spacing: 1.5px; }
-                .name { font-size: 14px; font-weight: 700; color: #1C1C1E; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-                .del { margin-top: 10px; font-size: 11px; color: #E8B4A0; cursor: pointer; border: none; background: none; font-weight: 700; }
+                .name { font-size: 14px; font-weight: 700; color: #1C1C1E; margin-top: 4px; }
+                .del { margin-top: auto; padding-top: 10px; font-size: 11px; color: #E8B4A0; cursor: pointer; border: none; background: none; font-weight: 700; text-align: left; }
             </style>
             <div class="card">
                 <div class="img-box"><img src="${imageSrc}"></div>
@@ -58,50 +58,40 @@ class ClosetItem extends HTMLElement {
         });
     }
 }
-customElements.define('closet-item', ClosetItem);
+if (!customElements.get('closet-item')) customElements.define('closet-item', ClosetItem);
 
 // ====================================================================
 // ** Main Application **
 // ====================================================================
 document.addEventListener('DOMContentLoaded', async () => {
-    // Elements
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('item-image');
     const form = document.getElementById('add-item-form');
     const nameInput = document.getElementById('item-name');
     const categoryInput = document.getElementById('item-category');
-    const analysisContent = document.getElementById('analysis-content');
-    const colorPalette = document.getElementById('color-palette');
     const gallery = document.getElementById('closet-gallery');
-    const themeToggle = document.getElementById('theme-toggle');
-    
-    // Auth
     const authBtn = document.getElementById('auth-btn');
     const authModal = document.getElementById('auth-modal');
-    const authForm = document.getElementById('auth-form');
-    const authIdInput = document.getElementById('auth-id');
-    const authPassword = document.getElementById('auth-password');
-    const switchToSignup = document.getElementById('switch-to-signup');
-
+    
     const REMOVE_BG_API_KEY = '5Ayb2PWWmbR9L6WTUe8kebWG';
     let net = null;
     let currentUser = null;
-    let analyzedColors = [];
+    let currentBase64Image = null; // 영구 저장을 위한 Base64 데이터
 
     // --- AI Load ---
     const loadAI = async () => {
         try {
             if (window.tf) await tf.ready();
             net = await mobilenet.load();
-            dropZone.querySelector('p').textContent = 'AI READY — UPLOAD IMAGE';
+            if (dropZone.querySelector('p')) dropZone.querySelector('p').textContent = 'AI READY — UPLOAD IMAGE';
         } catch (e) { console.error('AI Load Error'); }
     };
     loadAI();
 
-    // --- UI Toast ---
-    const showToast = (msg) => {
+    const showToast = (msg, type = 'info') => {
         const t = document.createElement('div');
         t.className = 'toast show';
+        t.style.background = type === 'error' ? '#ff4d4d' : '#1C1C1E';
         t.textContent = msg;
         document.body.appendChild(t);
         setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, 3000);
@@ -115,91 +105,83 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.querySelector('.close-modal')?.addEventListener('click', () => authModal.style.display = 'none');
 
-    authForm.addEventListener('submit', async (e) => {
+    document.getElementById('auth-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const id = authIdInput.value;
+        const id = document.getElementById('auth-id').value;
         const email = `${id.trim().toLowerCase()}@mycloset.com`;
-        const pw = authPassword.value;
+        const pw = document.getElementById('auth-password').value;
+        const isLogin = document.getElementById('auth-submit').textContent === 'Sign In';
         try {
-            if (authBtn.textContent === 'LOGIN') {
-                await auth.signInWithEmailAndPassword(email, pw);
-            } else {
-                await auth.createUserWithEmailAndPassword(email, pw);
-            }
+            if (isLogin) await auth.signInWithEmailAndPassword(email, pw);
+            else await auth.createUserWithEmailAndPassword(email, pw);
             authModal.style.display = 'none';
-        } catch (err) { showToast('AUTH ERROR: ' + err.message); }
+        } catch (err) { showToast('AUTH ERROR: ' + err.message, 'error'); }
     });
 
     auth.onAuthStateChanged(user => {
         currentUser = user;
         authBtn.textContent = user ? 'LOGOUT' : 'LOGIN';
-        document.getElementById('user-info').textContent = user ? user.email.split('@')[0].toUpperCase() : '';
+        const userDisplay = document.getElementById('user-info');
+        if (userDisplay) userDisplay.textContent = user ? user.email.split('@')[0].toUpperCase() : '';
+        if (user) syncTrialToCloud();
         loadItems();
     });
 
-    // --- File & Analysis ---
+    // --- Image Processing ---
     dropZone.addEventListener('click', () => fileInput.click());
     
     fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0]; if (!file) return;
-        
-        dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-wand-sparkles fa-spin" style="font-size:40px; color:#E8B4A0;"></i><p style="margin-top:15px; font-weight:700;">AI ANALYZING STYLE...</p></div>`;
+        dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-wand-sparkles fa-spin" style="font-size:40px; color:#E8B4A0;"></i><p style="margin-top:15px;">ANALYZING...</p></div>`;
         
         try {
-            // Remove BG
             const formData = new FormData();
             formData.append('image_file', file);
             const resp = await fetch('https://api.remove.bg/v1.0/removebg', { method: 'POST', headers: { 'X-Api-Key': REMOVE_BG_API_KEY }, body: formData }).catch(() => null);
             
             const blob = (resp && resp.ok) ? await resp.blob() : file;
-            const imgUrl = URL.createObjectURL(blob);
             
-            const img = new Image();
-            img.src = imgUrl;
-            img.onload = async () => {
-                dropZone.innerHTML = `<img src="${imgUrl}" style="max-height:100%; max-width:100%; object-fit:contain; border-radius:15px;">`;
-                
-                // AI Classify
-                if (net) {
-                    const predictions = await net.classify(img);
-                    const top = predictions[0];
-                    nameInput.value = top.className.split(',')[0].toUpperCase();
-                    
-                    const label = top.className.toLowerCase();
-                    if (label.match(/shirt|t-shirt|sweater|jersey/)) categoryInput.value = 'Top';
-                    else if (label.match(/jean|pant|short|skirt/)) categoryInput.value = 'Bottom';
-                    else if (label.match(/coat|jacket|suit/)) categoryInput.value = 'Outer';
-                    else if (label.match(/shoe|sneaker/)) categoryInput.value = 'Shoes';
-                    
-                    analysisContent.innerHTML = `<div class="info-row"><span class="info-label">AI PREDICTION</span><span class="info-value">${nameInput.value}</span></div>
-                                               <div class="info-row"><span class="info-label">CATEGORY</span><span class="info-value">${categoryInput.value}</span></div>`;
-                    
-                    extractColors(img);
-                }
+            // Convert to Base64 for permanent saving
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                currentBase64Image = reader.result;
+                const img = new Image();
+                img.src = currentBase64Image;
+                img.onload = () => {
+                    dropZone.innerHTML = `<img src="${currentBase64Image}" style="max-height:100%; max-width:100%; object-fit:contain; border-radius:15px;">`;
+                    if (net) analyze(img);
+                };
             };
-        } catch (err) { showToast('ANALYSIS ERROR'); }
+            reader.readAsDataURL(blob);
+        } catch (err) { showToast('PROCESS ERROR'); }
     });
 
-    const extractColors = (img) => {
-        const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
-        canvas.width = 100; canvas.height = 100; ctx.drawImage(img, 0, 0, 100, 100);
-        const data = ctx.getImageData(0, 0, 100, 100).data;
-        const counts = {};
-        for (let i = 0; i < data.length; i += 40) {
-            const rgb = `rgb(${data[i]},${data[i+1]},${data[i+2]})`;
-            counts[rgb] = (counts[rgb] || 0) + 1;
-        }
-        analyzedColors = Object.keys(counts).sort((a, b) => counts[b] - counts[a]).slice(0, 4);
-        colorPalette.innerHTML = analyzedColors.map(c => `<div style="width:24px; height:24px; border-radius:50%; background:${c}; border:2px solid #fff; box-shadow:0 4px 10px rgba(0,0,0,0.1);"></div>`).join('');
+    const analyze = async (img) => {
+        const predictions = await net.classify(img);
+        const top = predictions[0];
+        nameInput.value = top.className.split(',')[0].toUpperCase();
+        const label = top.className.toLowerCase();
+        if (label.match(/shirt|t-shirt|sweater|jersey/)) categoryInput.value = 'Top';
+        else if (label.match(/jean|pant|short|skirt/)) categoryInput.value = 'Bottom';
+        else if (label.match(/coat|jacket|suit/)) categoryInput.value = 'Outer';
+        else if (label.match(/shoe|sneaker/)) categoryInput.value = 'Shoes';
+        document.getElementById('analysis-content').innerHTML = `
+            <div class="info-row"><span class="info-label">AI PREDICTION</span><span class="info-value">${nameInput.value}</span></div>
+            <div class="info-row"><span class="info-label">CATEGORY</span><span class="info-value">${categoryInput.value}</span></div>
+        `;
     };
 
-    // --- DB Operations ---
+    // --- Core Save Logic ---
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const img = dropZone.querySelector('img');
-        if (!img) return showToast('UPLOAD IMAGE FIRST');
+        if (!currentBase64Image) return showToast('UPLOAD IMAGE FIRST', 'error');
         
-        const itemData = { name: nameInput.value, category: categoryInput.value, imageSrc: img.src, colors: analyzedColors, createdAt: Date.now() };
+        const itemData = { 
+            name: nameInput.value || 'NEW ITEM', 
+            category: categoryInput.value, 
+            imageSrc: currentBase64Image, 
+            createdAt: Date.now() 
+        };
         
         try {
             if (currentUser) {
@@ -209,48 +191,63 @@ document.addEventListener('DOMContentLoaded', async () => {
                 items.push({ ...itemData, id: 'trial_' + Date.now() });
                 localStorage.setItem('closet_v3', JSON.stringify(items));
             }
-            showToast('ADDED TO COLLECTION');
-            form.reset(); dropZone.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><p>READY TO ANALYZE</p>';
+            showToast('SUCCESSFULLY SAVED', 'success');
+            form.reset(); 
+            currentBase64Image = null;
+            dropZone.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><p>READY TO ANALYZE</p>';
             loadItems();
-        } catch (err) { showToast('SAVE ERROR'); }
+        } catch (err) { 
+            console.error('Save error:', err);
+            showToast('SAVE ERROR: Check Firestore Rules', 'error'); 
+        }
     });
 
     const loadItems = async () => {
-        gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.5;">REFINING COLLECTION...</p>';
+        gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.5;">LOADING...</p>';
         let items = [];
-        if (currentUser) {
-            const snap = await db.collection('wardrobes').doc(currentUser.uid).collection('items').get();
-            snap.forEach(doc => items.push({ ...doc.data(), id: doc.id }));
-        } else {
-            items = JSON.parse(localStorage.getItem('closet_v3') || '[]');
+        try {
+            if (currentUser) {
+                const snap = await db.collection('wardrobes').doc(currentUser.uid).collection('items').orderBy('createdAt', 'desc').get();
+                snap.forEach(doc => items.push({ ...doc.data(), id: doc.id }));
+            } else {
+                items = JSON.parse(localStorage.getItem('closet_v3') || '[]');
+            }
+            
+            gallery.innerHTML = '';
+            if (items.length === 0) gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.5;">옷장이 비어있습니다.</p>';
+            items.forEach(data => {
+                const el = document.createElement('closet-item');
+                el.setAttribute('name', data.name); el.setAttribute('category', data.category);
+                el.setAttribute('image-src', data.imageSrc); el.setAttribute('item-id', data.id);
+                gallery.appendChild(el);
+            });
+            updateSmartLook(items);
+        } catch (e) { gallery.innerHTML = 'ERROR LOADING ITEMS'; }
+    };
+
+    const syncTrialToCloud = async () => {
+        const items = JSON.parse(localStorage.getItem('closet_v3') || '[]');
+        if (items.length > 0 && currentUser) {
+            for (const item of items) {
+                delete item.id;
+                await db.collection('wardrobes').doc(currentUser.uid).collection('items').add(item);
+            }
+            localStorage.removeItem('closet_v3');
+            loadItems();
         }
-        
-        gallery.innerHTML = '';
-        items.forEach(data => {
-            const el = document.createElement('closet-item');
-            el.setAttribute('name', data.name); el.setAttribute('category', data.category);
-            el.setAttribute('image-src', data.imageSrc); el.setAttribute('item-id', data.id);
-            gallery.appendChild(el);
-        });
-        
-        // Smart Look Engine
+    };
+
+    const updateSmartLook = (items) => {
+        const grid = document.getElementById('smart-coord-grid');
         const tops = items.filter(i => i.category === 'Top');
         const bots = items.filter(i => i.category === 'Bottom');
         if (tops.length > 0 && bots.length > 0) {
-            const t = tops[0]; const b = bots[0];
-            document.getElementById('smart-coord-grid').innerHTML = `
-                <div style="display:flex; gap:10px; margin-bottom:15px;">
-                    <img src="${t.imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;">
-                    <img src="${b.imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;">
-                </div>
-                <p style="font-size:13px; font-weight:700; color:#1C1C1E;">DAILY LUXE MATCH</p>
-                <p style="font-size:12px; color:#8C8378; line-height:1.4;">${t.name}와 ${b.name}의 우아한 조화입니다. 전체적으로 정갈한 실루엣을 강조합니다.</p>
-            `;
+            grid.innerHTML = `<div style="display:flex; gap:10px;"><img src="${tops[0].imageSrc}" style="width:50px; height:50px; border-radius:8px;"><img src="${bots[0].imageSrc}" style="width:50px; height:50px; border-radius:8px;"></div><p style="font-size:12px; margin-top:10px;"><b>AI MATCH:</b> ${tops[0].name} + ${bots[0].name}</p>`;
         }
     };
 
     document.addEventListener('delete-item', async (e) => {
-        if (!confirm('REMOVE THIS ITEM?')) return;
+        if (!confirm('REMOVE?')) return;
         const id = e.detail.id;
         if (id.startsWith('trial_')) {
             const items = JSON.parse(localStorage.getItem('closet_v3') || '[]').filter(i => i.id !== id);
@@ -261,8 +258,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadItems();
     });
 
-    themeToggle.addEventListener('click', () => {
-        const isL = document.body.classList.toggle('light-mode');
-        localStorage.setItem('theme_v3', isL ? 'light' : 'dark');
+    document.getElementById('theme-toggle').addEventListener('click', () => document.body.classList.toggle('light-mode'));
+    document.getElementById('switch-to-signup').addEventListener('click', (e) => {
+        e.preventDefault();
+        const submit = document.getElementById('auth-submit');
+        const title = document.getElementById('modal-title');
+        const isLogin = submit.textContent === 'Sign In';
+        submit.textContent = isLogin ? 'Sign Up' : 'Sign In';
+        title.textContent = isLogin ? 'Create Account' : 'Login';
+        e.target.textContent = isLogin ? 'Already have an account?' : 'Create an account';
     });
 });
