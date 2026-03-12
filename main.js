@@ -167,6 +167,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (user) {
             authBtn.textContent = '로그아웃';
             userInfo.textContent = `${user.email.split('@')[0]} 님`;
+            syncTrialToCloud();
         } else {
             authBtn.textContent = '로그인';
             userInfo.textContent = '';
@@ -184,7 +185,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const bottoms = items.filter(i => i.category === 'Bottom');
 
         if (tops.length > 0 && bottoms.length > 0) {
-            // Pick random pair for demo
             const top = tops[Math.floor(Math.random() * tops.length)];
             const bottom = bottoms[Math.floor(Math.random() * bottoms.length)];
 
@@ -207,7 +207,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     const getCoordinationTip = (top, bottom) => {
-        const topColor = top.colors ? top.colors[0] : '#fff';
         return "전체적으로 균형 잡힌 실루엣을 강조한 스타일링입니다. 깔끔한 스니커즈로 마무리해보세요.";
     };
 
@@ -216,27 +215,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         analysisContent.innerHTML = `<div class="placeholder-text"><i class="fa-solid fa-wand-magic-sparkles fa-beat"></i> 스타일 분석 중...</div>`;
         if (!net) return;
 
-        const predictions = await net.classify(imgElement);
-        let results = { category: 'Acc', name: '새로운 패션 아이템', confidence: 0, season: 'All Season' };
+        try {
+            const predictions = await net.classify(imgElement);
+            let results = { category: 'Acc', name: '새로운 패션 아이템', confidence: 0, season: 'All Season' };
 
-        if (predictions && predictions.length > 0) {
-            const topResult = predictions[0];
-            const label = topResult.className.toLowerCase();
-            results.name = topResult.className.split(',')[0];
+            if (predictions && predictions.length > 0) {
+                const topResult = predictions[0];
+                const label = topResult.className.toLowerCase();
+                results.name = topResult.className.split(',')[0];
+                
+                if (label.match(/shirt|t-shirt|sweater|jersey|blouse|cardigan/)) results.category = 'Top';
+                else if (label.match(/jean|pant|short|skirt|trouser/)) results.category = 'Bottom';
+                else if (label.match(/coat|jacket|suit|parka/)) results.category = 'Outer';
+                else if (label.match(/shoe|sneaker|boot|sandal/)) results.category = 'Shoes';
+                else if (label.match(/dress|gown|robe/)) results.category = 'Dress';
+            }
+
+            lastAiAnalysis = results;
+            analyzedColors = extractColors(imgElement);
+            nameInput.value = results.name;
+            categoryInput.value = results.category;
             
-            if (label.match(/shirt|t-shirt|sweater|jersey|blouse|cardigan/)) results.category = 'Top';
-            else if (label.match(/jean|pant|short|skirt|trouser/)) results.category = 'Bottom';
-            else if (label.match(/coat|jacket|suit|parka/)) results.category = 'Outer';
-            else if (label.match(/shoe|sneaker|boot|sandal/)) results.category = 'Shoes';
-            else if (label.match(/dress|gown|robe/)) results.category = 'Dress';
-        }
-
-        lastAiAnalysis = results;
-        analyzedColors = extractColors(imgElement);
-        nameInput.value = results.name;
-        categoryInput.value = results.category;
-        
-        renderAnalysis(results.category, results.name, analyzedColors);
+            renderAnalysis(results.category, results.name, analyzedColors);
+        } catch (err) { console.error('Analysis Error', err); }
     };
 
     const renderAnalysis = (category, name, colors) => {
@@ -283,35 +284,53 @@ document.addEventListener('DOMContentLoaded', async () => {
     const loadItems = async () => {
         gallery.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px; opacity:0.5;">Updating Closet...</div>';
         let items = [];
-        if (currentUser) {
-            const snapshot = await db.collection('wardrobes').doc(currentUser.uid).collection('items').orderBy('createdAt', 'desc').get();
-            snapshot.forEach(doc => items.push({ ...doc.data(), id: doc.id }));
-        } else {
-            items = JSON.parse(localStorage.getItem(TRIAL_KEY) || '[]');
+        try {
+            if (currentUser) {
+                const snapshot = await db.collection('wardrobes').doc(currentUser.uid).collection('items').orderBy('createdAt', 'desc').get();
+                snapshot.forEach(doc => items.push({ ...doc.data(), id: doc.id }));
+            } else {
+                items = JSON.parse(localStorage.getItem(TRIAL_KEY) || '[]');
+            }
+            
+            allLoadedItems = items;
+            const filtered = currentCategoryFilter === '전체' ? items : items.filter(i => (categoryMap[currentCategoryFilter] || currentCategoryFilter) === i.category);
+            
+            gallery.innerHTML = '';
+            if (filtered.length === 0) {
+                gallery.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 80px; color:#999;">아이템이 없습니다. 새로운 옷을 등록해보세요!</div>';
+            } else {
+                filtered.forEach(itemData => {
+                    const item = document.createElement('closet-item');
+                    item.setAttribute('name', itemData.name); item.setAttribute('category', itemData.category);
+                    item.setAttribute('image-src', itemData.imageSrc); item.setAttribute('item-id', itemData.id);
+                    gallery.appendChild(item);
+                });
+            }
+            generateSmartCoordination(items);
+        } catch (err) {
+            console.error('Load error', err);
+            gallery.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color:red;">데이터를 불러오는 중 오류가 발생했습니다. (Firestore 설정을 확인하세요)</div>';
         }
-        
-        allLoadedItems = items;
-        const filtered = currentCategoryFilter === '전체' ? items : items.filter(i => (categoryMap[currentCategoryFilter] || currentCategoryFilter) === i.category);
-        
-        gallery.innerHTML = '';
-        if (filtered.length === 0) {
-            gallery.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 80px; color:#999;">아이템이 없습니다. 새로운 옷을 등록해보세요!</div>';
-        } else {
-            filtered.forEach(itemData => {
-                const item = document.createElement('closet-item');
-                item.setAttribute('name', itemData.name); item.setAttribute('category', itemData.category);
-                item.setAttribute('image-src', itemData.imageSrc); item.setAttribute('item-id', itemData.id);
-                gallery.appendChild(item);
-            });
+    };
+
+    const syncTrialToCloud = async () => {
+        const items = JSON.parse(localStorage.getItem(TRIAL_KEY) || '[]');
+        if (items.length > 0 && currentUser) {
+            for (const item of items) {
+                delete item.id;
+                await db.collection('wardrobes').doc(currentUser.uid).collection('items').add({
+                    ...item, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+            localStorage.removeItem(TRIAL_KEY);
+            loadItems();
         }
-        generateSmartCoordination(items);
     };
 
     fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0]; if (!file) return;
         dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-scissors fa-beat" style="font-size:3rem; color:#ff3366;"></i><p style="margin-top:15px; font-weight:700;">AI 배경 제거 및 분석 중...</p></div>`;
         
-        // Remove Background Simulation / Call
         const formData = new FormData(); formData.append('image_file', file);
         const bgResponse = await fetch('https://api.remove.bg/v1.0/removebg', { method: 'POST', headers: { 'X-Api-Key': REMOVE_BG_API_KEY }, body: formData }).catch(() => null);
         
@@ -332,32 +351,49 @@ document.addEventListener('DOMContentLoaded', async () => {
         const img = dropZone.querySelector('img');
         if (!img) return showToast('이미지를 먼저 업로드하세요.', 'error');
         
-        const itemData = { name: nameInput.value, category: categoryInput.value, imageSrc: img.src, colors: analyzedColors, createdAt: Date.now() };
+        const itemData = { 
+            name: nameInput.value, 
+            category: categoryInput.value, 
+            imageSrc: img.src, 
+            colors: analyzedColors,
+            createdAt: Date.now() 
+        };
         
-        if (currentUser) {
-            await db.collection('wardrobes').doc(currentUser.uid).collection('items').add({ ...itemData, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-        } else {
-            const items = JSON.parse(localStorage.getItem(TRIAL_KEY) || '[]');
-            if (items.length >= TRIAL_LIMIT) return showToast('체험판 한도 초과! 가입 후 무제한으로 사용하세요.');
-            items.push({ ...itemData, id: 'trial_' + Date.now() });
-            localStorage.setItem(TRIAL_KEY, JSON.stringify(items));
+        try {
+            if (currentUser) {
+                await db.collection('wardrobes').doc(currentUser.uid).collection('items').add({ 
+                    ...itemData, 
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp() 
+                });
+            } else {
+                const items = JSON.parse(localStorage.getItem(TRIAL_KEY) || '[]');
+                if (items.length >= TRIAL_LIMIT) return showToast('체험판 한도 초과! 가입 후 무제한으로 사용하세요.');
+                items.push({ ...itemData, id: 'trial_' + Date.now() });
+                localStorage.setItem(TRIAL_KEY, JSON.stringify(items));
+            }
+            
+            showToast('옷장에 성공적으로 보관되었습니다.', 'success');
+            form.reset(); 
+            dropZone.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><p>New Item</p>';
+            loadItems();
+        } catch (err) {
+            console.error('Save error', err);
+            showToast('저장 중 오류가 발생했습니다: ' + err.message, 'error');
         }
-        
-        showToast('옷장에 성공적으로 보관되었습니다.', 'success');
-        form.reset(); dropZone.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><p>New Item</p>';
-        loadItems();
     });
 
     document.addEventListener('delete-item', async (e) => {
         if (!confirm('정말 삭제할까요?')) return;
         const id = e.detail.id;
-        if (id.startsWith('trial_')) {
-            const items = JSON.parse(localStorage.getItem(TRIAL_KEY) || '[]').filter(i => i.id !== id);
-            localStorage.setItem(TRIAL_KEY, JSON.stringify(items));
-        } else {
-            await db.collection('wardrobes').doc(currentUser.uid).collection('items').doc(id).delete();
-        }
-        loadItems();
+        try {
+            if (id.startsWith('trial_')) {
+                const items = JSON.parse(localStorage.getItem(TRIAL_KEY) || '[]').filter(i => i.id !== id);
+                localStorage.setItem(TRIAL_KEY, JSON.stringify(items));
+            } else {
+                await db.collection('wardrobes').doc(currentUser.uid).collection('items').doc(id).delete();
+            }
+            loadItems();
+        } catch (err) { showToast('삭제 중 오류가 발생했습니다.', 'error'); }
     });
 
     filterButtons.forEach(btn => btn.addEventListener('click', () => {
