@@ -32,7 +32,7 @@ class ClosetItem extends HTMLElement {
                 .img-box { width: 100%; aspect-ratio: 1; background: #FAF7F2; border-radius: 18px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
                 img { max-width: 95%; max-height: 95%; object-fit: contain; }
                 .info { padding: 10px 4px; flex: 1; display: flex; flex-direction: column; }
-                .cat { font-size: 10px; font-weight: 800; color: #8C8378; text-transform: uppercase; letter-spacing: 1px; }
+                .cat { font-size: 10px; font-weight: 800; color: #8C8378; text-transform: uppercase; }
                 .name { font-size: 13px; font-weight: 700; color: #1C1C1E; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
                 .del { margin-top: auto; padding-top: 10px; font-size: 10px; color: #E8B4A0; cursor: pointer; border: none; background: none; font-weight: 700; text-align: left; }
             </style>
@@ -109,17 +109,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     };
 
-    // --- Sync Logic (CRITICAL) ---
+    // --- Sync Logic ---
     const syncTrialToCloud = async (user) => {
         const trialItems = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]');
         if (trialItems.length > 0 && user) {
-            showToast('체험판 데이터를 계정으로 옮기는 중...', 'info');
+            showToast('데이터 동기화 중...', 'info');
             for (const item of trialItems) {
-                delete item.id; // 기존 temp ID 제거
-                await db.collection('wardrobes').doc(user.uid).collection('items').add(item).catch(e => console.error('Sync failed item'));
+                delete item.id;
+                await db.collection('closets').add({
+                    ...item,
+                    userId: user.uid, // 누구의 옷인지 명시
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                }).catch(e => console.error('Sync failed'));
             }
             localStorage.removeItem(CLOSET_KEY);
-            showToast('데이터 동기화 완료!', 'success');
             loadItems();
         }
     };
@@ -176,7 +179,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (err) { showToast('이미지 처리 실패', 'error'); }
     });
 
-    // --- SAVE ---
+    // --- SAVE (Based on your provided logic) ---
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!optimizedBase64Image) return showToast('이미지를 먼저 업로드하세요.', 'error');
@@ -184,15 +187,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         const itemData = { 
             name: nameInput.value || 'NEW ITEM', 
             category: categoryInput.value, 
-            imageSrc: optimizedBase64Image, 
+            imageSrc: optimizedBase64Image,
             createdAt: Date.now() 
         };
         
         try {
             if (currentUser) {
-                showToast('계정에 저장 중...', 'info');
-                await db.collection('wardrobes').doc(currentUser.uid).collection('items').add(itemData);
-                showToast('옷장에 안전하게 저장되었습니다!', 'success');
+                showToast('데이터베이스 저장 중...', 'info');
+                // 핵심: 누구의 옷인지 기록 (userId 필드 추가)
+                await db.collection('closets').add({
+                    ...itemData,
+                    userId: currentUser.uid,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                showToast('옷장에 저장되었습니다!', 'success');
             } else {
                 const items = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]');
                 items.push({ ...itemData, id: 'trial_' + Date.now() });
@@ -202,7 +210,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             form.reset(); optimizedBase64Image = null;
             dropZone.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><p>READY TO ANALYZE</p>';
             loadItems();
-        } catch (err) { showToast('저장 실패: ' + err.code, 'error'); }
+        } catch (err) { 
+            console.error('저장 오류: ', err);
+            showToast('저장 실패: ' + err.code, 'error'); 
+        }
     });
 
     // --- LOAD & RENDER ---
@@ -210,17 +221,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.5; padding:40px;">REFRESHING DATA...</p>';
         try {
             if (currentUser) {
-                const snap = await db.collection('wardrobes').doc(currentUser.uid).collection('items').get();
+                // 핵심: 현재 로그인한 유저의 옷만 가져오기
+                const snap = await db.collection('closets')
+                                   .where("userId", "==", currentUser.uid)
+                                   .get();
                 allItems = [];
                 snap.forEach(doc => allItems.push({ ...doc.data(), id: doc.id }));
             } else {
                 allItems = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]');
             }
-            allItems.sort((a, b) => b.createdAt - a.createdAt);
+            // 로컬에서 정렬 (인덱스 오류 방지)
+            allItems.sort((a, b) => (b.createdAt?.seconds || b.createdAt) - (a.createdAt?.seconds || a.createdAt));
+            
             document.getElementById('item-count').textContent = allItems.length;
             renderGallery();
             updateSmartLook(allItems);
-        } catch (e) { gallery.innerHTML = 'ERROR LOADING DATA'; }
+        } catch (e) { 
+            console.error('불러오기 오류:', e);
+            gallery.innerHTML = 'ERROR LOADING DATA'; 
+        }
     };
 
     const renderGallery = () => {
@@ -261,7 +280,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const items = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]').filter(i => i.id !== id);
                 localStorage.setItem(CLOSET_KEY, JSON.stringify(items));
             } else if (currentUser) {
-                await db.collection('wardrobes').doc(currentUser.uid).collection('items').doc(id).delete();
+                await db.collection('closets').doc(id).delete();
             }
             loadItems();
         } catch (err) { showToast('삭제 오류', 'error'); }
