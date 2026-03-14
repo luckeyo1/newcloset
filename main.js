@@ -82,7 +82,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         t.style.background = type === 'error' ? '#ff4d4d' : (type === 'success' ? '#4CAF50' : '#1C1C1E');
         t.textContent = msg;
         document.body.appendChild(t);
-        setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, 4000);
+        // 에러인 경우 더 오래 표시 (원인 파악용)
+        const duration = type === 'error' ? 6000 : 3000;
+        setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, duration);
     };
 
     // AI Load
@@ -114,7 +116,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const syncTrialToCloud = async (user) => {
         const trialItems = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]');
         if (trialItems.length > 0 && user) {
-            showToast('데이터 동기화 중...', 'info');
+            showToast('기존 데이터를 동기화하는 중...', 'info');
             for (const item of trialItems) {
                 delete item.id;
                 await db.collection('closets').add({
@@ -139,16 +141,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadItems();
     });
 
-    // --- Google Login Integration ---
+    // --- Google Login (Strong Error Tracking) ---
     googleLoginBtn.addEventListener('click', async () => {
         const provider = new firebase.auth.GoogleAuthProvider();
         try {
-            await auth.signInWithPopup(provider);
-            showToast('구글 로그인 성공!', 'success');
+            showToast('구글 로그인 팝업을 여는 중...', 'info');
+            const result = await auth.signInWithPopup(provider);
+            showToast(`반가워요, ${result.user.displayName}님!`, 'success');
             authModal.style.display = 'none';
         } catch (error) {
-            console.error('Google Auth Error:', error);
-            showToast('구글 로그인에 실패했습니다.', 'error');
+            console.error('GOOGLE_LOGIN_ERROR:', error);
+            // 에러 원인을 한글로 상세 가이드
+            let msg = `구글 로그인 실패: ${error.code}`;
+            if (error.code === 'auth/operation-not-allowed') msg = '오류: 파이어베이스 콘솔에서 Google 로그인을 활성화해주세요.';
+            if (error.code === 'auth/unauthorized-domain') msg = '오류: 현재 도메인이 승인된 도메인에 등록되지 않았습니다.';
+            if (error.code === 'auth/popup-closed-by-user') msg = '로그인 팝업이 닫혔습니다. 다시 시도해주세요.';
+            
+            showToast(msg, 'error');
         }
     });
 
@@ -156,7 +165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     dropZone.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0]; if (!file) return;
-        dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-wand-sparkles fa-spin" style="font-size:40px; color:#E8B4A0;"></i><p style="margin-top:15px;">ANALYZING STYLE...</p></div>`;
+        dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-wand-sparkles fa-spin" style="font-size:40px; color:#E8B4A0;"></i><p style="margin-top:15px;">STYLE ANALYZING...</p></div>`;
         
         try {
             const formData = new FormData();
@@ -171,27 +180,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                 img.onload = async () => {
                     optimizedBase64Image = await compressImage(img);
                     dropZone.innerHTML = `<img src="${optimizedBase64Image}" style="max-height:100%; max-width:100%; object-fit:contain; border-radius:15px;">`;
-                    if (net) {
-                        const predictions = await net.classify(img);
-                        const top = predictions[0];
-                        nameInput.value = top.className.split(',')[0].toUpperCase();
-                        const label = top.className.toLowerCase();
-                        if (label.match(/shirt|t-shirt|sweater|jersey|polo/)) categoryInput.value = 'Top';
-                        else if (label.match(/jean|pant|short|skirt|trouser/)) categoryInput.value = 'Bottom';
-                        else if (label.match(/coat|jacket|suit|blazer/)) categoryInput.value = 'Outer';
-                        else if (label.match(/shoe|sneaker|boot/)) categoryInput.value = 'Shoes';
-                        else if (label.match(/dress|gown/)) categoryInput.value = 'Dress';
-                        else categoryInput.value = 'Acc';
-                        
-                        document.getElementById('analysis-content').innerHTML = `
-                            <div class="info-row"><span class="info-label">AI PREDICTION</span><span class="info-value">${nameInput.value}</span></div>
-                            <div class="info-row"><span class="info-label">CATEGORY</span><span class="info-value">${categoryInput.value}</span></div>`;
-                    }
+                    if (net) analyze(img);
                 };
             };
             reader.readAsDataURL(blob);
         } catch (err) { showToast('이미지 처리 실패', 'error'); }
     });
+
+    const analyze = async (img) => {
+        const predictions = await net.classify(img);
+        const top = predictions[0];
+        const label = top.className.toLowerCase();
+        nameInput.value = top.className.split(',')[0].toUpperCase();
+        
+        if (label.match(/shirt|t-shirt|sweater|jersey|polo/)) categoryInput.value = 'Top';
+        else if (label.match(/jean|pant|short|skirt|trouser/)) categoryInput.value = 'Bottom';
+        else if (label.match(/coat|jacket|suit|blazer/)) categoryInput.value = 'Outer';
+        else if (label.match(/shoe|sneaker|boot/)) categoryInput.value = 'Shoes';
+        else if (label.match(/dress|gown/)) categoryInput.value = 'Dress';
+        else categoryInput.value = 'Acc';
+        
+        document.getElementById('analysis-content').innerHTML = `
+            <div class="info-row"><span class="info-label">AI PREDICTION</span><span class="info-value">${nameInput.value}</span></div>
+            <div class="info-row"><span class="info-label">CATEGORY</span><span class="info-value">${categoryInput.value}</span></div>`;
+    };
 
     // --- SAVE ---
     form.addEventListener('submit', async (e) => {
@@ -202,33 +214,35 @@ document.addEventListener('DOMContentLoaded', async () => {
             name: nameInput.value || 'NEW ITEM', 
             category: categoryInput.value, 
             imageSrc: optimizedBase64Image,
-            createdAt: Date.now() 
+            createdAt: firebase.firestore.Timestamp.now() 
         };
         
         try {
             if (currentUser) {
-                showToast('데이터베이스 저장 중...', 'info');
+                showToast('계정에 저장 중...', 'info');
                 await db.collection('closets').add({
                     ...itemData,
-                    userId: currentUser.uid,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    userId: currentUser.uid
                 });
                 showToast('옷장에 안전하게 저장되었습니다!', 'success');
             } else {
                 const items = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]');
-                items.push({ ...itemData, id: 'trial_' + Date.now() });
+                items.push({ ...itemData, id: 'trial_' + Date.now(), createdAt: Date.now() });
                 localStorage.setItem(CLOSET_KEY, JSON.stringify(items));
                 showToast('체험판 옷장에 저장됨.', 'success');
             }
             form.reset(); optimizedBase64Image = null;
             dropZone.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><p>READY TO ANALYZE</p>';
             loadItems();
-        } catch (err) { showToast('저장 실패: ' + err.code, 'error'); }
+        } catch (err) { 
+            console.error('SAVE_ERROR:', err);
+            showToast(`저장 실패: ${err.code || err.message}`, 'error'); 
+        }
     });
 
-    // --- LOAD & RENDER ---
+    // --- LOAD ---
     const loadItems = async () => {
-        gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.5; padding:40px;">REFRESHING DATA...</p>';
+        gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.5; padding:40px;">REFRESHING COLLECTION...</p>';
         try {
             if (currentUser) {
                 const snap = await db.collection('closets')
@@ -239,16 +253,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 allItems = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]');
             }
-            allItems.sort((a, b) => (b.createdAt?.seconds || b.createdAt) - (a.createdAt?.seconds || a.createdAt));
+            allItems.sort((a, b) => {
+                const timeA = a.createdAt?.seconds || a.createdAt || 0;
+                const timeB = b.createdAt?.seconds || b.createdAt || 0;
+                return timeB - timeA;
+            });
             document.getElementById('item-count').textContent = allItems.length;
             renderGallery();
             updateSmartLook(allItems);
-        } catch (e) { gallery.innerHTML = 'ERROR LOADING DATA'; }
+        } catch (e) { 
+            console.error('LOAD_ERROR:', e);
+            gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:red;">데이터 로드 실패</p>';
+        }
     };
 
     const renderGallery = () => {
         const filtered = currentFilter === '전체' ? allItems : allItems.filter(i => i.category === currentFilter);
         gallery.innerHTML = '';
+        if (filtered.length === 0) {
+            gallery.innerHTML = `<p style="grid-column:1/-1; text-align:center; opacity:0.5; padding:40px;">등록된 아이템이 없습니다.</p>`;
+            return;
+        }
         filtered.forEach(data => {
             const el = document.createElement('closet-item');
             el.setAttribute('name', data.name); el.setAttribute('category', data.category);
@@ -273,6 +298,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const bots = items.filter(i => i.category === 'Bottom');
         if (tops.length > 0 && bots.length > 0) {
             grid.innerHTML = `<div style="display:flex; gap:10px; margin-bottom:15px;"><img src="${tops[0].imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;"><img src="${bots[0].imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;"></div><p style="font-size:13px; font-weight:700;">DAILY ARCHIVE LOOK</p><p style="font-size:12px; color:var(--stone); line-height:1.4;">${tops[0].name} + ${bots[0].name}</p>`;
+        } else {
+            grid.innerHTML = `<p style="font-size:12px; color:var(--stone);">상의와 하의를 등록하면 AI 조합이 활성화됩니다.</p>`;
         }
     };
 
@@ -287,33 +314,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await db.collection('closets').doc(id).delete();
             }
             loadItems();
-        } catch (err) { showToast('삭제 오류', 'error'); }
+        } catch (err) { showToast('삭제 실패', 'error'); }
     });
 
-    // Auth Modal Handlers
-    authBtn.addEventListener('click', () => {
-        if (currentUser) auth.signOut().then(() => showToast('로그아웃 되었습니다.'));
-        else authModal.style.display = 'flex';
-    });
-    document.querySelector('.close-modal')?.addEventListener('click', () => authModal.style.display = 'none');
+    // Auth Form Logic
     document.getElementById('auth-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = document.getElementById('auth-id').value;
         const email = `${id.trim().toLowerCase()}@mycloset.com`;
         const pw = document.getElementById('auth-password').value;
-        const isLogin = document.getElementById('auth-submit').textContent === 'Sign In';
+        const isSignUp = document.getElementById('auth-submit').textContent.includes('Sign Up');
         try {
-            if (isLogin) await auth.signInWithEmailAndPassword(email, pw);
-            else await auth.createUserWithEmailAndPassword(email, pw);
+            if (isSignUp) await auth.createUserWithEmailAndPassword(email, pw);
+            else await auth.signInWithEmailAndPassword(email, pw);
             authModal.style.display = 'none';
-        } catch (err) { showToast('인증 오류: ' + err.message, 'error'); }
-    });
-    document.getElementById('switch-to-signup').addEventListener('click', (e) => {
-        e.preventDefault();
-        const submit = document.getElementById('auth-submit');
-        const isLogin = submit.textContent === 'Sign In';
-        submit.textContent = isLogin ? 'Sign Up' : 'Sign In';
-        document.getElementById('modal-title').textContent = isLogin ? 'Create Account' : 'Login';
-        e.target.textContent = isLogin ? 'Login here' : 'Create an account';
+        } catch (err) { 
+            console.error('AUTH_ERROR:', err);
+            showToast(`인증 실패: ${err.code}`, 'error'); 
+        }
     });
 });
