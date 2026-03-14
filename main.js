@@ -84,7 +84,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         t.style.background = type === 'error' ? '#ff4d4d' : (type === 'success' ? '#4CAF50' : '#1C1C1E');
         t.textContent = msg;
         document.body.appendChild(t);
-        // 에러면 더 오래 표시
         setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, type === 'error' ? 6000 : 3000);
     };
 
@@ -113,9 +112,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     };
 
-    // --- Auth UI Logic ---
+    // --- Sync Logic ---
+    const syncTrialToCloud = async (user) => {
+        const trialItems = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]');
+        if (trialItems.length > 0 && user) {
+            showToast('데이터를 안전하게 클라우드로 이전 중...', 'info');
+            for (const item of trialItems) {
+                delete item.id;
+                await db.collection('closets').add({ ...item, userId: user.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+            }
+            localStorage.removeItem(CLOSET_KEY);
+            loadItems();
+        }
+    };
+
+    // --- Auth Logic ---
     authBtn.addEventListener('click', () => {
-        if (currentUser) { auth.signOut().then(() => showToast('로그아웃 되었습니다.', 'success')); }
+        if (currentUser) auth.signOut().then(() => showToast('로그아웃 되었습니다.', 'success'));
         else authModal.style.display = 'flex';
     });
 
@@ -131,45 +144,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.target.textContent = isLogin ? 'Login here' : 'Create a secure account';
     });
 
-    // --- Google Login (With Detailed Alerts) ---
+    // --- Google Login ---
     googleLoginBtn?.addEventListener('click', async () => {
         const provider = new firebase.auth.GoogleAuthProvider();
         try {
             showToast('구글 로그인 중...', 'info');
             await auth.signInWithPopup(provider);
-            showToast('반갑습니다!', 'success');
+            showToast('성공적으로 로그인되었습니다!', 'success');
             authModal.style.display = 'none';
         } catch (error) {
-            console.error('GOOGLE_AUTH_ERROR:', error);
-            let msg = `구글 로그인 실패: ${error.code}`;
-            if (error.code === 'auth/operation-not-allowed') msg = '콘솔에서 Google 로그인을 활성화해야 합니다.';
-            if (error.code === 'auth/unauthorized-domain') msg = '도메인이 승인되지 않았습니다. 콘솔 설정을 확인하세요.';
+            console.error('GOOGLE_ERROR:', error);
+            let msg = `로그인 실패: ${error.code}`;
+            if (error.code === 'auth/unauthorized-domain') msg = '도메인 승인이 아직 반영되지 않았습니다. 1분 후 다시 시도해 보세요.';
             showToast(msg, 'error');
         }
     });
 
-    // --- Auth State ---
+    // --- Auth State Change ---
     auth.onAuthStateChanged(async (user) => {
         currentUser = user;
         authBtn.textContent = user ? 'LOGOUT' : 'LOGIN';
         const userDisplay = document.getElementById('user-info');
         if (userDisplay) userDisplay.textContent = user ? (user.displayName || user.email.split('@')[0]).toUpperCase() : '';
-        
-        if (user) {
-            const trialItems = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]');
-            if (trialItems.length > 0) {
-                showToast('데이터 동기화 중...', 'info');
-                for (const item of trialItems) {
-                    delete item.id;
-                    await db.collection('closets').add({ ...item, userId: user.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-                }
-                localStorage.removeItem(CLOSET_KEY);
-            }
-        }
+        if (user) await syncTrialToCloud(user);
         loadItems();
     });
 
-    // --- Image Upload & Process ---
+    // --- Image Processing ---
     dropZone.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0]; if (!file) return;
@@ -189,7 +190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const top = predictions[0];
                         nameInput.value = top.className.split(',')[0].toUpperCase();
                         const label = top.className.toLowerCase();
-                        if (label.match(/shirt|t-shirt|sweater|jersey/)) categoryInput.value = 'Top';
+                        if (label.match(/shirt|t-shirt|sweater|jersey|polo/)) categoryInput.value = 'Top';
                         else if (label.match(/jean|pant|short|skirt/)) categoryInput.value = 'Bottom';
                         else if (label.match(/coat|jacket|suit/)) categoryInput.value = 'Outer';
                         else if (label.match(/shoe|sneaker/)) categoryInput.value = 'Shoes';
@@ -210,21 +211,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         const itemData = { name: nameInput.value || 'NEW ITEM', category: categoryInput.value, imageSrc: optimizedBase64Image, createdAt: firebase.firestore.Timestamp.now() };
         try {
             if (currentUser) {
+                showToast('계정에 저장 중...', 'info');
                 await db.collection('closets').add({ ...itemData, userId: currentUser.uid });
-                showToast('옷장에 저장되었습니다!', 'success');
+                showToast('옷장에 안전하게 저장되었습니다!', 'success');
             } else {
                 const items = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]');
                 items.push({ ...itemData, id: 'trial_' + Date.now(), createdAt: Date.now() });
                 localStorage.setItem(CLOSET_KEY, JSON.stringify(items));
-                showToast('임시 옷장에 저장됨.', 'success');
+                showToast('체험판 옷장에 저장됨.', 'success');
             }
             form.reset(); optimizedBase64Image = null;
             dropZone.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><p>READY TO ANALYZE</p>';
             loadItems();
-        } catch (err) { showToast('저장 오류: ' + err.code, 'error'); }
+        } catch (err) { showToast(`저장 실패: ${err.code}`, 'error'); }
     });
 
-    // --- LOAD ---
+    // --- LOAD & RENDER ---
     const loadItems = async () => {
         gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.5; padding:40px;">REFRESHING DATA...</p>';
         try {
@@ -232,11 +234,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const snap = await db.collection('closets').where("userId", "==", currentUser.uid).get();
                 allItems = []; snap.forEach(doc => allItems.push({ ...doc.data(), id: doc.id }));
             } else { allItems = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]'); }
-            allItems.sort((a, b) => (b.createdAt?.seconds || b.createdAt) - (a.createdAt?.seconds || a.createdAt));
+            allItems.sort((a, b) => {
+                const tA = a.createdAt?.seconds || a.createdAt || 0;
+                const tB = b.createdAt?.seconds || b.createdAt || 0;
+                return tB - tA;
+            });
             document.getElementById('item-count').textContent = allItems.length;
             renderGallery();
             updateSmartLook(allItems);
-        } catch (e) { gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:red;">로드 실패</p>'; }
+        } catch (e) { gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:red;">데이터 로드 실패</p>'; }
     };
 
     const renderGallery = () => {
@@ -263,12 +269,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const grid = document.getElementById('smart-coord-grid');
         const tops = items.filter(i => i.category === 'Top'); const bots = items.filter(i => i.category === 'Bottom');
         if (tops.length > 0 && bots.length > 0) {
-            grid.innerHTML = `<div style="display:flex; gap:10px; margin-bottom:15px;"><img src="${tops[0].imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;"><img src="${bots[0].imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;"></div><p style="font-size:13px; font-weight:700;">DAILY LOOK</p><p style="font-size:12px; color:var(--stone); line-height:1.4;">${tops[0].name} + ${bots[0].name}</p>`;
-        }
+            grid.innerHTML = `<div style="display:flex; gap:10px; margin-bottom:15px;"><img src="${tops[0].imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;"><img src="${bots[0].imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;"></div><p style="font-size:13px; font-weight:700;">DAILY ARCHIVE LOOK</p><p style="font-size:12px; color:var(--stone); line-height:1.4;">${tops[0].name} + ${bots[0].name}</p>`;
+        } else { grid.innerHTML = `<p style="font-size:12px; color:var(--stone);">상의와 하의를 등록하면 AI 조합이 활성화됩니다.</p>`; }
     };
 
     document.addEventListener('delete-item', async (e) => {
-        if (!confirm('삭제하시겠습니까?')) return;
+        if (!confirm('정말 삭제할까요?')) return;
         const id = e.detail.id;
         try {
             if (id.startsWith('trial_')) { const items = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]').filter(i => i.id !== id); localStorage.setItem(CLOSET_KEY, JSON.stringify(items)); }
@@ -277,31 +283,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (err) { showToast('삭제 실패', 'error'); }
     });
 
-    // --- Email Auth Handle (Strong Error Feedback) ---
     document.getElementById('auth-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = document.getElementById('auth-id').value;
         const email = `${id.trim().toLowerCase()}@mycloset.com`;
         const pw = document.getElementById('auth-password').value;
         const isSignUp = document.getElementById('auth-submit').textContent.includes('Sign Up');
-        
         try {
-            if (isSignUp) {
-                await auth.createUserWithEmailAndPassword(email, pw);
-                showToast('회원가입 성공!', 'success');
-            } else {
-                await auth.signInWithEmailAndPassword(email, pw);
-                showToast('로그인 성공!', 'success');
-            }
+            if (isSignUp) await auth.createUserWithEmailAndPassword(email, pw);
+            else await auth.signInWithEmailAndPassword(email, pw);
             authModal.style.display = 'none';
-        } catch (err) { 
-            console.error('AUTH_ERROR:', err);
-            let msg = `인증 실패: ${err.code}`;
-            if (err.code === 'auth/weak-password') msg = '비밀번호가 너무 짧습니다. (6자 이상)';
-            if (err.code === 'auth/email-already-in-use') msg = '이미 사용 중인 아이디입니다.';
-            if (err.code === 'auth/wrong-password') msg = '비밀번호가 틀렸습니다.';
-            if (err.code === 'auth/user-not-found') msg = '존재하지 않는 계정입니다.';
-            showToast(msg, 'error'); 
-        }
+        } catch (err) { showToast(`인증 실패: ${err.code}`, 'error'); }
     });
 });
