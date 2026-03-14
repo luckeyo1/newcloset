@@ -84,6 +84,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         t.style.background = type === 'error' ? '#ff4d4d' : (type === 'success' ? '#4CAF50' : '#1C1C1E');
         t.textContent = msg;
         document.body.appendChild(t);
+        // 에러면 더 오래 표시
         setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, type === 'error' ? 6000 : 3000);
     };
 
@@ -112,9 +113,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     };
 
-    // --- Auth Interaction Handlers ---
+    // --- Auth UI Logic ---
     authBtn.addEventListener('click', () => {
-        if (currentUser) { auth.signOut().then(() => showToast('로그아웃 되었습니다.')); }
+        if (currentUser) { auth.signOut().then(() => showToast('로그아웃 되었습니다.', 'success')); }
         else authModal.style.display = 'flex';
     });
 
@@ -124,27 +125,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.preventDefault();
         const submitBtn = document.getElementById('auth-submit');
         const modalTitle = document.getElementById('modal-title');
-        const isLogin = submitBtn.textContent.includes('Sign In');
+        const isLogin = submitBtn.textContent === 'Sign In';
         submitBtn.textContent = isLogin ? 'Sign Up' : 'Sign In';
         modalTitle.textContent = isLogin ? 'Create Account' : 'Connect';
         e.target.textContent = isLogin ? 'Login here' : 'Create a secure account';
     });
 
-    // --- Google Login ---
+    // --- Google Login (With Detailed Alerts) ---
     googleLoginBtn?.addEventListener('click', async () => {
         const provider = new firebase.auth.GoogleAuthProvider();
         try {
             showToast('구글 로그인 중...', 'info');
             await auth.signInWithPopup(provider);
-            showToast('로그인 성공!', 'success');
+            showToast('반갑습니다!', 'success');
             authModal.style.display = 'none';
         } catch (error) {
-            console.error('Google Auth Error:', error);
-            showToast(`실패: ${error.code}`, 'error');
+            console.error('GOOGLE_AUTH_ERROR:', error);
+            let msg = `구글 로그인 실패: ${error.code}`;
+            if (error.code === 'auth/operation-not-allowed') msg = '콘솔에서 Google 로그인을 활성화해야 합니다.';
+            if (error.code === 'auth/unauthorized-domain') msg = '도메인이 승인되지 않았습니다. 콘솔 설정을 확인하세요.';
+            showToast(msg, 'error');
         }
     });
 
-    // --- Auth State & Sync ---
+    // --- Auth State ---
     auth.onAuthStateChanged(async (user) => {
         currentUser = user;
         authBtn.textContent = user ? 'LOGOUT' : 'LOGIN';
@@ -206,22 +210,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         const itemData = { name: nameInput.value || 'NEW ITEM', category: categoryInput.value, imageSrc: optimizedBase64Image, createdAt: firebase.firestore.Timestamp.now() };
         try {
             if (currentUser) {
-                showToast('저장 중...', 'info');
                 await db.collection('closets').add({ ...itemData, userId: currentUser.uid });
                 showToast('옷장에 저장되었습니다!', 'success');
             } else {
                 const items = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]');
                 items.push({ ...itemData, id: 'trial_' + Date.now(), createdAt: Date.now() });
                 localStorage.setItem(CLOSET_KEY, JSON.stringify(items));
-                showToast('체험판 옷장에 저장됨.', 'success');
+                showToast('임시 옷장에 저장됨.', 'success');
             }
             form.reset(); optimizedBase64Image = null;
             dropZone.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><p>READY TO ANALYZE</p>';
             loadItems();
-        } catch (err) { showToast('저장 실패: ' + err.code, 'error'); }
+        } catch (err) { showToast('저장 오류: ' + err.code, 'error'); }
     });
 
-    // --- LOAD & RENDER ---
+    // --- LOAD ---
     const loadItems = async () => {
         gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.5; padding:40px;">REFRESHING DATA...</p>';
         try {
@@ -233,7 +236,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('item-count').textContent = allItems.length;
             renderGallery();
             updateSmartLook(allItems);
-        } catch (e) { gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:red;">데이터 로드 실패</p>'; }
+        } catch (e) { gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:red;">로드 실패</p>'; }
     };
 
     const renderGallery = () => {
@@ -260,12 +263,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const grid = document.getElementById('smart-coord-grid');
         const tops = items.filter(i => i.category === 'Top'); const bots = items.filter(i => i.category === 'Bottom');
         if (tops.length > 0 && bots.length > 0) {
-            grid.innerHTML = `<div style="display:flex; gap:10px; margin-bottom:15px;"><img src="${tops[0].imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;"><img src="${bots[0].imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;"></div><p style="font-size:13px; font-weight:700;">DAILY ARCHIVE LOOK</p><p style="font-size:12px; color:var(--stone); line-height:1.4;">${tops[0].name} + ${bots[0].name}</p>`;
-        } else { grid.innerHTML = `<p style="font-size:12px; color:var(--stone);">상의와 하의를 등록하면 AI 조합이 활성화됩니다.</p>`; }
+            grid.innerHTML = `<div style="display:flex; gap:10px; margin-bottom:15px;"><img src="${tops[0].imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;"><img src="${bots[0].imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;"></div><p style="font-size:13px; font-weight:700;">DAILY LOOK</p><p style="font-size:12px; color:var(--stone); line-height:1.4;">${tops[0].name} + ${bots[0].name}</p>`;
+        }
     };
 
     document.addEventListener('delete-item', async (e) => {
-        if (!confirm('정말 삭제할까요?')) return;
+        if (!confirm('삭제하시겠습니까?')) return;
         const id = e.detail.id;
         try {
             if (id.startsWith('trial_')) { const items = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]').filter(i => i.id !== id); localStorage.setItem(CLOSET_KEY, JSON.stringify(items)); }
@@ -274,16 +277,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (err) { showToast('삭제 실패', 'error'); }
     });
 
+    // --- Email Auth Handle (Strong Error Feedback) ---
     document.getElementById('auth-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = document.getElementById('auth-id').value;
         const email = `${id.trim().toLowerCase()}@mycloset.com`;
         const pw = document.getElementById('auth-password').value;
         const isSignUp = document.getElementById('auth-submit').textContent.includes('Sign Up');
+        
         try {
-            if (isSignUp) await auth.createUserWithEmailAndPassword(email, pw);
-            else await auth.signInWithEmailAndPassword(email, pw);
+            if (isSignUp) {
+                await auth.createUserWithEmailAndPassword(email, pw);
+                showToast('회원가입 성공!', 'success');
+            } else {
+                await auth.signInWithEmailAndPassword(email, pw);
+                showToast('로그인 성공!', 'success');
+            }
             authModal.style.display = 'none';
-        } catch (err) { showToast(`인증 실패: ${err.code}`, 'error'); }
+        } catch (err) { 
+            console.error('AUTH_ERROR:', err);
+            let msg = `인증 실패: ${err.code}`;
+            if (err.code === 'auth/weak-password') msg = '비밀번호가 너무 짧습니다. (6자 이상)';
+            if (err.code === 'auth/email-already-in-use') msg = '이미 사용 중인 아이디입니다.';
+            if (err.code === 'auth/wrong-password') msg = '비밀번호가 틀렸습니다.';
+            if (err.code === 'auth/user-not-found') msg = '존재하지 않는 계정입니다.';
+            showToast(msg, 'error'); 
+        }
     });
 });
