@@ -68,9 +68,7 @@
                     <span class="btn-luxe" data-filter="Shoes" style="padding: 8px 20px; font-size: 11px; background: #fff; color: #000; border: 1px solid #eee;">SHOES</span>
                 </div>
             </div>
-            <div id="closet-gallery" class="closet-grid">
-                <!-- Items will be injected here -->
-            </div>
+            <div id="closet-gallery" class="closet-grid"></div>
         </section>
 
         <!-- Right: Insight & Matching -->
@@ -95,7 +93,16 @@
     <div id="auth-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(10px); z-index:2000; align-items:center; justify-content:center;">
         <div class="glass-card" style="width:400px; padding:50px; position:relative;">
             <span class="close-modal" style="position:absolute; right:30px; top:20px; cursor:pointer; font-size:20px;">✕</span>
-            <h2 class="serif" id="modal-title" style="font-size:32px; margin-bottom:10px;">Login</h2>
+            <h2 class="serif" id="modal-title" style="font-size:32px; margin-bottom:10px;">Connect</h2>
+            
+            <!-- Google Login Button -->
+            <button id="google-login-btn" class="btn-luxe" style="background:#fff; color:#000; border:1px solid #eee; margin-bottom:20px; display:flex; align-items:center; justify-content:center; gap:10px; width:100%;">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18">
+                Continue with Google
+            </button>
+
+            <div style="text-align:center; margin-bottom:20px; font-size:11px; color:var(--stone);">OR</div>
+
             <form id="auth-form" style="display:flex; flex-direction:column; gap:15px;">
                 <input type="text" id="auth-id" placeholder="ID" class="btn-luxe" style="background:#fff; color:#000; text-align:left; border:1px solid #eee; width:100%;" required>
                 <input type="password" id="auth-password" placeholder="Password" class="btn-luxe" style="background:#fff; color:#000; text-align:left; border:1px solid #eee; width:100%;" required>
