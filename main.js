@@ -3,6 +3,7 @@
 // ====================================================================
 const firebaseConfig = {
     apiKey: "AIzaSyDK1kimYUSskgWDm2IinbqSeIT3yXt8EV8", 
+    // 기본 firebaseapp.com 도메인을 우선 사용하여 승인 지연 해결 시도
     authDomain: "cherrychoice-test1w-8469-a2886.firebaseapp.com",
     projectId: "cherrychoice-test1w-8469-a2886",
     storageBucket: "cherrychoice-test1w-8469-a2886.appspot.com",
@@ -84,7 +85,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         t.style.background = type === 'error' ? '#ff4d4d' : (type === 'success' ? '#4CAF50' : '#1C1C1E');
         t.textContent = msg;
         document.body.appendChild(t);
-        setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, type === 'error' ? 6000 : 3000);
+        setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, 5000);
     };
 
     // AI Load
@@ -92,18 +93,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             if (window.tf) await tf.ready();
             net = await mobilenet.load();
-            if (dropZone.querySelector('p')) dropZone.querySelector('p').textContent = 'AI ONLINE — UPLOAD IMAGE';
+            dropZone.querySelector('p').textContent = 'AI ONLINE — UPLOAD IMAGE';
         } catch (e) { console.error('AI Load Failed'); }
     };
     loadAI();
 
-    // --- Image Compression ---
     const compressImage = (imgElement) => {
         return new Promise((resolve) => {
             const canvas = document.createElement('canvas');
             const MAX_WIDTH = 450; 
-            let width = imgElement.width;
-            let height = imgElement.height;
+            let width = imgElement.width; let height = imgElement.height;
             if (width > MAX_WIDTH) { height = (MAX_WIDTH / width) * height; width = MAX_WIDTH; }
             canvas.width = width; canvas.height = height;
             const ctx = canvas.getContext('2d');
@@ -112,69 +111,63 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     };
 
-    // --- Sync Logic ---
-    const syncTrialToCloud = async (user) => {
-        const trialItems = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]');
-        if (trialItems.length > 0 && user) {
-            showToast('데이터를 안전하게 클라우드로 이전 중...', 'info');
-            for (const item of trialItems) {
-                delete item.id;
-                await db.collection('closets').add({ ...item, userId: user.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+    // --- Google Login (Bypass Cache & Error Handle) ---
+    googleLoginBtn?.addEventListener('click', async () => {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        // 승인 지연 시 더 안정적인 설정을 위해 prompt 추가
+        provider.setCustomParameters({ prompt: 'select_account' });
+        
+        try {
+            showToast('구글 인증을 시도합니다...', 'info');
+            const result = await auth.signInWithPopup(provider);
+            showToast(`환영합니다, ${result.user.displayName}님!`, 'success');
+            authModal.style.display = 'none';
+        } catch (error) {
+            console.error('GOOGLE_ERROR:', error);
+            if (error.code === 'auth/unauthorized-domain') {
+                showToast('도메인 승인이 지연되고 있습니다. 창을 완전히 닫고 1분 후 다시 접속해 보세요.', 'error');
+            } else {
+                showToast(`로그인 실패: ${error.code}`, 'error');
             }
-            localStorage.removeItem(CLOSET_KEY);
-            loadItems();
         }
-    };
+    });
 
-    // --- Auth Logic ---
+    // --- Auth Interaction ---
     authBtn.addEventListener('click', () => {
-        if (currentUser) auth.signOut().then(() => showToast('로그아웃 되었습니다.', 'success'));
+        if (currentUser) auth.signOut().then(() => {
+            showToast('로그아웃 되었습니다.');
+            location.reload(); // 도메인 설정 반영을 위한 강제 새로고침
+        });
         else authModal.style.display = 'flex';
     });
 
     closeModal?.addEventListener('click', () => authModal.style.display = 'none');
 
-    switchToSignup?.addEventListener('click', (e) => {
-        e.preventDefault();
-        const submitBtn = document.getElementById('auth-submit');
-        const modalTitle = document.getElementById('modal-title');
-        const isLogin = submitBtn.textContent === 'Sign In';
-        submitBtn.textContent = isLogin ? 'Sign Up' : 'Sign In';
-        modalTitle.textContent = isLogin ? 'Create Account' : 'Connect';
-        e.target.textContent = isLogin ? 'Login here' : 'Create a secure account';
-    });
-
-    // --- Google Login ---
-    googleLoginBtn?.addEventListener('click', async () => {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        try {
-            showToast('구글 로그인 중...', 'info');
-            await auth.signInWithPopup(provider);
-            showToast('성공적으로 로그인되었습니다!', 'success');
-            authModal.style.display = 'none';
-        } catch (error) {
-            console.error('GOOGLE_ERROR:', error);
-            let msg = `로그인 실패: ${error.code}`;
-            if (error.code === 'auth/unauthorized-domain') msg = '도메인 승인이 아직 반영되지 않았습니다. 1분 후 다시 시도해 보세요.';
-            showToast(msg, 'error');
-        }
-    });
-
-    // --- Auth State Change ---
+    // --- Core Sync & Load ---
     auth.onAuthStateChanged(async (user) => {
         currentUser = user;
         authBtn.textContent = user ? 'LOGOUT' : 'LOGIN';
         const userDisplay = document.getElementById('user-info');
         if (userDisplay) userDisplay.textContent = user ? (user.displayName || user.email.split('@')[0]).toUpperCase() : '';
-        if (user) await syncTrialToCloud(user);
+        
+        if (user) {
+            const trialItems = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]');
+            if (trialItems.length > 0) {
+                for (const item of trialItems) {
+                    delete item.id;
+                    await db.collection('closets').add({ ...item, userId: user.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+                }
+                localStorage.removeItem(CLOSET_KEY);
+            }
+        }
         loadItems();
     });
 
-    // --- Image Processing ---
+    // --- Other Logic (Image Process, Save, Load) ---
     dropZone.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0]; if (!file) return;
-        dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-wand-sparkles fa-spin" style="font-size:40px; color:#E8B4A0;"></i><p style="margin-top:15px;">ANALYZING STYLE...</p></div>`;
+        dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-wand-sparkles fa-spin" style="font-size:40px; color:#E8B4A0;"></i><p style="margin-top:15px;">ANALYZING...</p></div>`;
         try {
             const formData = new FormData(); formData.append('image_file', file);
             const resp = await fetch('https://api.remove.bg/v1.0/removebg', { method: 'POST', headers: { 'X-Api-Key': REMOVE_BG_API_KEY }, body: formData }).catch(() => null);
@@ -190,7 +183,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const top = predictions[0];
                         nameInput.value = top.className.split(',')[0].toUpperCase();
                         const label = top.className.toLowerCase();
-                        if (label.match(/shirt|t-shirt|sweater|jersey|polo/)) categoryInput.value = 'Top';
+                        if (label.match(/shirt|t-shirt|sweater|jersey/)) categoryInput.value = 'Top';
                         else if (label.match(/jean|pant|short|skirt/)) categoryInput.value = 'Bottom';
                         else if (label.match(/coat|jacket|suit/)) categoryInput.value = 'Outer';
                         else if (label.match(/shoe|sneaker/)) categoryInput.value = 'Shoes';
@@ -204,21 +197,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (err) { showToast('이미지 처리 실패', 'error'); }
     });
 
-    // --- SAVE ---
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!optimizedBase64Image) return showToast('이미지를 먼저 업로드하세요.', 'error');
         const itemData = { name: nameInput.value || 'NEW ITEM', category: categoryInput.value, imageSrc: optimizedBase64Image, createdAt: firebase.firestore.Timestamp.now() };
         try {
             if (currentUser) {
-                showToast('계정에 저장 중...', 'info');
                 await db.collection('closets').add({ ...itemData, userId: currentUser.uid });
-                showToast('옷장에 안전하게 저장되었습니다!', 'success');
+                showToast('옷장에 저장되었습니다!', 'success');
             } else {
                 const items = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]');
                 items.push({ ...itemData, id: 'trial_' + Date.now(), createdAt: Date.now() });
                 localStorage.setItem(CLOSET_KEY, JSON.stringify(items));
-                showToast('체험판 옷장에 저장됨.', 'success');
+                showToast('임시 저장 완료.', 'success');
             }
             form.reset(); optimizedBase64Image = null;
             dropZone.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><p>READY TO ANALYZE</p>';
@@ -226,7 +217,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (err) { showToast(`저장 실패: ${err.code}`, 'error'); }
     });
 
-    // --- LOAD & RENDER ---
     const loadItems = async () => {
         gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.5; padding:40px;">REFRESHING DATA...</p>';
         try {
@@ -234,11 +224,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const snap = await db.collection('closets').where("userId", "==", currentUser.uid).get();
                 allItems = []; snap.forEach(doc => allItems.push({ ...doc.data(), id: doc.id }));
             } else { allItems = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]'); }
-            allItems.sort((a, b) => {
-                const tA = a.createdAt?.seconds || a.createdAt || 0;
-                const tB = b.createdAt?.seconds || b.createdAt || 0;
-                return tB - tA;
-            });
+            allItems.sort((a, b) => (b.createdAt?.seconds || b.createdAt) - (a.createdAt?.seconds || a.createdAt));
             document.getElementById('item-count').textContent = allItems.length;
             renderGallery();
             updateSmartLook(allItems);
@@ -248,7 +234,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const renderGallery = () => {
         const filtered = currentFilter === '전체' ? allItems : allItems.filter(i => i.category === currentFilter);
         gallery.innerHTML = '';
-        if (filtered.length === 0) { gallery.innerHTML = `<p style="grid-column:1/-1; text-align:center; opacity:0.5; padding:40px;">등록된 아이템이 없습니다.</p>`; return; }
         filtered.forEach(data => {
             const el = document.createElement('closet-item');
             el.setAttribute('name', data.name); el.setAttribute('category', data.category);
@@ -270,7 +255,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tops = items.filter(i => i.category === 'Top'); const bots = items.filter(i => i.category === 'Bottom');
         if (tops.length > 0 && bots.length > 0) {
             grid.innerHTML = `<div style="display:flex; gap:10px; margin-bottom:15px;"><img src="${tops[0].imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;"><img src="${bots[0].imageSrc}" style="width:60px; height:60px; border-radius:10px; object-fit:cover;"></div><p style="font-size:13px; font-weight:700;">DAILY ARCHIVE LOOK</p><p style="font-size:12px; color:var(--stone); line-height:1.4;">${tops[0].name} + ${bots[0].name}</p>`;
-        } else { grid.innerHTML = `<p style="font-size:12px; color:var(--stone);">상의와 하의를 등록하면 AI 조합이 활성화됩니다.</p>`; }
+        }
     };
 
     document.addEventListener('delete-item', async (e) => {
