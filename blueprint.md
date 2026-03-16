@@ -22,7 +22,7 @@ A modern, AI-powered digital closet application that allows users to upload, cat
 - **Repository:** GitHub (https://github.com/luckeyo1/newcloset)
 
 ## **4. Backend Configuration (Firebase)**
-- **Authentication:** Email/Password provider must be enabled in Firebase Console.
+- **Authentication:** Email/Password provider must be enabled in Firebase Console. Google Sign-In is handled via redirect to avoid pop-up blockers.
 - **Database:** Cloud Firestore in "Test Mode" or with appropriate security rules.
 - **API Key:** Valid Web API Key from Project Settings.
 
@@ -31,6 +31,7 @@ A modern, AI-powered digital closet application that allows users to upload, cat
 - [x] **Local AI:** MobileNet integration for basic categorization.
 - [x] **Firebase Integration:** API Key and Config updated in `main.js`.
 - [x] **AdSense Optimization:** Essential pages and footer added.
+- [x] **Authentication Flow:** Updated Google Sign-In to use `signInWithRedirect` to fix `auth/popup-blocked` error.
 - [ ] **Backend Activation:** Enable Auth & Firestore in Firebase Console (Manual Step).
 - [ ] **API Integration:** Connect to a specialized Fashion Analysis API.
 - [ ] **Color Palette:** Implement canvas-based color extraction.
@@ -45,7 +46,7 @@ A modern, AI-powered digital closet application that allows users to upload, cat
 - **SEO & Meta Tags:** Proper description, keywords, and Open Graph tags for better indexability.
 - **Content-First Design:** Clear headings and readable text for better crawling.
 
-## **5. File Structure**
+## **7. File Structure**
 - `index.html`: Entry point.
 - `main.js`: Core logic.
 - `style.css`: Styling.

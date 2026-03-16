@@ -26,13 +26,13 @@ class ClosetItem extends HTMLElement {
         this.shadowRoot.innerHTML = `
             <style>
                 :host { display: block; animation: slideUp 0.4s ease-out; }
-                @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
                 .card {
                     background: #fff; border-radius: 24px; padding: 12px;
                     transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
                     box-shadow: 0 10px 30px rgba(0,0,0,0.02); border: 1px solid #f0f0f0;
                 }
-                .card:hover { transform: translateY(-10px) scale(1.02); box-shadow: 0 20px 50px rgba(0,0,0,0.08); border-color: #E8B4A0; }
+                .card:hover { transform: translateY(-5px); border-color: #E8B4A0; box-shadow: 0 20px 50px rgba(0,0,0,0.08); border-color: #E8B4A0; }
                 .img-box {
                     width: 100%; aspect-ratio: 1; background: #FAF7F2;
                     border-radius: 18px; overflow: hidden; display: flex; align-items: center; justify-content: center;
@@ -58,7 +58,7 @@ class ClosetItem extends HTMLElement {
         });
     }
 }
-customElements.define('closet-item', ClosetItem);
+if (!customElements.get('closet-item')) customElements.define('closet-item', ClosetItem);
 
 // ====================================================================
 // ** Main Application **
@@ -71,7 +71,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const nameInput = document.getElementById('item-name');
     const categoryInput = document.getElementById('item-category');
     const gallery = document.getElementById('closet-gallery');
-    const themeToggle = document.getElementById('theme-toggle');
     
     // Auth
     const authBtn = document.getElementById('auth-btn');
@@ -83,6 +82,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const googleLoginBtn = document.getElementById('google-login-btn');
 
     const REMOVE_BG_API_KEY = '5Ayb2PWWmbR9L6WTUe8kebWG';
+    const CLOSET_KEY = 'closet_v3';
     let net = null;
     let currentUser = null;
     let optimizedBase64Image = null;
@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             if (window.tf) await tf.ready();
             net = await mobilenet.load();
-            dropZone.querySelector('p').textContent = 'AI READY — UPLOAD IMAGE';
+            if (dropZone.querySelector('p')) dropZone.querySelector('p').textContent = 'AI READY — UPLOAD IMAGE';
         } catch (e) { console.error('AI Load Error'); }
     };
     loadAI();
@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // --- Google Login ---
-    googleLoginBtn.addEventListener('click', async () => {
+    googleLoginBtn?.addEventListener('click', async () => {
         const provider = new firebase.auth.GoogleAuthProvider();
         try {
             await auth.signInWithPopup(provider);
@@ -157,7 +157,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     auth.onAuthStateChanged(user => {
         currentUser = user;
         authBtn.textContent = user ? 'LOGOUT' : 'LOGIN';
-        document.getElementById('user-info').textContent = user ? (user.displayName || user.email.split('@')[0]).toUpperCase() : '';
+        const userDisplay = document.getElementById('user-info');
+        if (userDisplay) userDisplay.textContent = user ? (user.displayName || user.email.split('@')[0]).toUpperCase() : '';
         loadItems();
     });
 
@@ -195,9 +196,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (currentUser) {
             await db.collection('wardrobes').doc(currentUser.uid).collection('items').add(itemData);
         } else {
-            const items = JSON.parse(localStorage.getItem('closet_v3') || '[]');
+            const items = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]');
             items.push({ ...itemData, id: 'trial_' + Date.now() });
-            localStorage.setItem('closet_v3', JSON.stringify(items));
+            localStorage.setItem(CLOSET_KEY, JSON.stringify(items));
         }
         showToast('ADDED TO COLLECTION');
         form.reset(); optimizedBase64Image = null;
@@ -212,7 +213,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const snap = await db.collection('wardrobes').doc(currentUser.uid).collection('items').orderBy('createdAt', 'desc').get();
             snap.forEach(doc => items.push({ ...doc.data(), id: doc.id }));
         } else {
-            items = JSON.parse(localStorage.getItem('closet_v3') || '[]');
+            items = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]');
         }
         gallery.innerHTML = '';
         items.forEach(data => {
@@ -227,8 +228,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!confirm('REMOVE?')) return;
         const id = e.detail.id;
         if (id.startsWith('trial_')) {
-            const items = JSON.parse(localStorage.getItem('closet_v3') || '[]').filter(i => i.id !== id);
-            localStorage.setItem('closet_v3', JSON.stringify(items));
+            const items = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]').filter(i => i.id !== id);
+            localStorage.setItem(CLOSET_KEY, JSON.stringify(items));
         } else {
             await db.collection('wardrobes').doc(currentUser.uid).collection('items').doc(id).delete();
         }
