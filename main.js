@@ -124,13 +124,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     googleLoginBtn?.addEventListener('click', async () => {
         const provider = new firebase.auth.GoogleAuthProvider();
         try {
-            await auth.signInWithPopup(provider);
-            showToast('GOOGLE LOGIN SUCCESS');
-            authModal.style.display = 'none';
+            // Using redirect instead of popup to avoid auth/popup-blocked error
+            await auth.signInWithRedirect(provider);
         } catch (error) {
             console.error('Google Auth Error:', error);
             showToast('LOGIN FAILED');
         }
+    });
+
+    // Handle redirect result
+    auth.getRedirectResult().then((result) => {
+        if (result.user) {
+            showToast('GOOGLE LOGIN SUCCESS');
+            authModal.style.display = 'none';
+        }
+    }).catch((error) => {
+        console.error('Redirect Result Error:', error);
     });
 
     // --- Auth Logic ---
@@ -193,17 +202,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!optimizedBase64Image) return showToast('UPLOAD IMAGE FIRST');
         const itemData = { name: nameInput.value, category: categoryInput.value, imageSrc: optimizedBase64Image, createdAt: Date.now() };
         
-        if (currentUser) {
-            await db.collection('wardrobes').doc(currentUser.uid).collection('items').add(itemData);
-        } else {
-            const items = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]');
-            items.push({ ...itemData, id: 'trial_' + Date.now() });
-            localStorage.setItem(CLOSET_KEY, JSON.stringify(items));
+        try {
+            if (currentUser) {
+                await db.collection('wardrobes').doc(currentUser.uid).collection('items').add(itemData);
+            } else {
+                const items = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]');
+                items.push({ ...itemData, id: 'trial_' + Date.now() });
+                localStorage.setItem(CLOSET_KEY, JSON.stringify(items));
+            }
+            showToast('ADDED TO COLLECTION');
+            form.reset(); optimizedBase64Image = null;
+            dropZone.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><p>READY TO ANALYZE</p>';
+            loadItems();
+        } catch (err) {
+            console.error('Add Item Error:', err);
+            if (err.message.includes('permission-denied')) {
+                showToast('DATABASE ERROR: ENABLE FIRESTORE API');
+            } else {
+                showToast('ADD FAILED: CHECK CONNECTION');
+            }
         }
-        showToast('ADDED TO COLLECTION');
-        form.reset(); optimizedBase64Image = null;
-        dropZone.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><p>READY TO ANALYZE</p>';
-        loadItems();
     });
 
     const loadItems = async () => {

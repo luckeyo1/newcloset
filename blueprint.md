@@ -27,12 +27,13 @@ A modern, AI-powered digital closet application that allows users to upload, cat
 - **API Key:** Valid Web API Key from Project Settings.
 
 ## **5. Current Progress & Roadmap**
+- [x] **Landing Page:** Premium landing page implemented using `closet (2).html` design.
 - [x] **Basic Structure:** HTML/CSS/JS scaffolding complete.
 - [x] **Local AI:** MobileNet integration for basic categorization.
 - [x] **Firebase Integration:** API Key and Config updated in `main.js`.
-- [x] **AdSense Optimization:** Essential pages and footer added.
 - [x] **Authentication Flow:** Updated Google Sign-In to use `signInWithRedirect` to fix `auth/popup-blocked` error.
-- [ ] **Backend Activation:** Enable Auth & Firestore in Firebase Console (Manual Step).
+- [x] **Database Fix:** Firestore error handling and security rules instructions provided.
+- [ ] **Deployment:** Pending manual `firebase deploy` (Authentication required).
 - [ ] **API Integration:** Connect to a specialized Fashion Analysis API.
 - [ ] **Color Palette:** Implement canvas-based color extraction.
 
