@@ -551,7 +551,7 @@
     <a href="#features">기능</a>
     <a href="#demo">데모</a>
     <a href="#pricing">요금</a>
-    <a href="app.html" class="nav-cta">로그인</a>
+    <a href="app.html" id="nav-auth-link" class="nav-cta">로그인</a>
   </div>
 </nav>
 
@@ -567,7 +567,7 @@
       바쁜 아침 10분을 돌려드립니다. AI가 날씨·일정을 분석해 오늘의 최적 코디를 제안하고, 방치된 옷을 가치 있는 자산으로 바꿔드립니다.
     </p>
     <div class="hero-btns">
-      <a href="#" class="btn-primary" onclick="openModal(); return false;">무료로 시작하기</a>
+      <a href="app.html" id="hero-cta-btn" class="btn-primary">무료로 시작하기</a>
       <a href="#demo" class="btn-ghost">데모 보기 →</a>
     </div>
     <div class="hero-stats">
@@ -883,6 +883,7 @@
     <div class="pricing-card fade-in">
       <div class="plan-name">Free</div>
       <div class="plan-price">₩0</div>
+      <div class="plan-price">₩0</div>
       <div class="plan-period">무료 · 기간 제한 없음</div>
       <div class="plan-features">
         <div class="pf">옷장 등록 최대 30벌</div>
@@ -890,7 +891,7 @@
         <div class="pf">중고 거래 연동</div>
         <div class="pf">소셜 클로젯 탐색</div>
       </div>
-      <button class="plan-btn" onclick="openModal()">무료로 시작</button>
+      <button class="plan-btn" onclick="location.href='app.html'">무료로 시작</button>
     </div>
 
     <div class="pricing-card featured fade-in">
@@ -906,7 +907,7 @@
         <div class="pf">자동 방치 옷 알림</div>
         <div class="pf">쇼핑몰·카드 연동</div>
       </div>
-      <button class="plan-btn" onclick="openModal()">Pro 시작하기</button>
+      <button class="plan-btn" onclick="location.href='app.html'">Pro 시작하기</button>
     </div>
 
     <div class="pricing-card fade-in">
@@ -920,7 +921,7 @@
         <div class="pf">옷 대여·교환 우선 매칭</div>
         <div class="pf">우선 고객 지원</div>
       </div>
-      <button class="plan-btn" onclick="openModal()">Premium 시작</button>
+      <button class="plan-btn" onclick="location.href='app.html'">Premium 시작</button>
     </div>
   </div>
 </section>
@@ -931,7 +932,7 @@
   <h2 class="section-title" style="text-align:center">"나를 위한 옷장,<br>나를 위한 하루"</h2>
   <p class="section-sub">매일 아침 10분을 돌려받고, 방치된 옷장을 자산으로 바꾸세요. 첫 30일은 무료입니다.</p>
   <div class="cta-btns">
-    <a href="app.html" class="btn-cta-white">무료로 시작하기</a>
+    <a href="app.html" id="cta-bottom-btn" class="btn-cta-white">무료로 시작하기</a>
     <a href="#features" class="btn-cta-outline">기능 둘러보기</a>
   </div>
 </section>
@@ -943,37 +944,39 @@
   <div>나를 위한 옷장, 나를 위한 하루</div>
 </footer>
 
-<!-- MODAL -->
-<div class="modal-overlay" id="modal" onclick="closeModalOutside(event)">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModal()">✕</button>
-    <div class="modal-title">무료로 시작하기 🎉</div>
-    <p class="modal-sub">30일 무료 체험, 신용카드 불필요. 지금 바로 스마트한 옷장을 만나보세요.</p>
-    <div class="form-group">
-      <label class="form-label">이름</label>
-      <input class="form-input" type="text" placeholder="이름을 입력하세요">
-    </div>
-    <div class="form-group">
-      <label class="form-label">이메일</label>
-      <input class="form-input" type="email" placeholder="email@example.com">
-    </div>
-    <div class="form-group">
-      <label class="form-label">나는 어떤 유형인가요?</label>
-      <select class="form-input form-select">
-        <option>바쁜 직장인 (3040)</option>
-        <option>패션 피플 (2030)</option>
-        <option>미니멀리스트</option>
-        <option>기타</option>
-      </select>
-    </div>
-    <button class="modal-submit" onclick="submitForm()">무료 체험 시작 →</button>
-  </div>
-</div>
-
 <!-- TOAST -->
 <div class="toast" id="toast">✅ 완료되었습니다!</div>
 
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+
 <script>
+  // Firebase Configuration
+  const firebaseConfig = {
+      apiKey: "AIzaSyDK1kimYUSskgWDm2IinbqSeIT3yXt8EV8", 
+      authDomain: "cherrychoice-test1w-8469-a2886.firebaseapp.com",
+      projectId: "cherrychoice-test1w-8469-a2886",
+      storageBucket: "cherrychoice-test1w-8469-a2886.appspot.com",
+      messagingSenderId: "467241546268",
+      appId: "1:467241546268:web:a29ce5496c0e817d94e5d9"
+  };
+  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+
+  // Auth State Listener for Landing Page
+  auth.onAuthStateChanged(user => {
+    const authLink = document.getElementById('nav-auth-link');
+    const heroBtn = document.getElementById('hero-cta-btn');
+    const bottomBtn = document.getElementById('cta-bottom-btn');
+    
+    if (user) {
+      if (authLink) authLink.textContent = '내 옷장 이동';
+      if (heroBtn) heroBtn.textContent = '내 옷장으로 바로가기';
+      if (bottomBtn) bottomBtn.textContent = '내 옷장으로 바로가기';
+    }
+  });
+
   // Fade-in on scroll
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(e => {
@@ -1002,14 +1005,6 @@
     document.querySelectorAll('.oc').forEach(c => c.classList.remove('sel'));
     el.classList.add('sel');
     showToast('코디가 선택됐어요!');
-  }
-
-  // Modal
-  function openModal() { document.getElementById('modal').classList.add('open'); }
-  function closeModal() { document.getElementById('modal').classList.remove('open'); }
-  function closeModalOutside(e) { if (e.target === document.getElementById('modal')) closeModal(); }
-  function submitForm() {
-    window.location.href = 'app.html';
   }
 
   // Toast
