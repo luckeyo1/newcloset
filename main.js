@@ -15,16 +15,12 @@ let auth, db;
 try {
     if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
-        console.log("Firebase Initialized Successfully");
     }
     auth = firebase.auth();
     db = firebase.firestore();
-    
-    // Set persistence to LOCAL (Persistent session)
     auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 } catch (e) {
     console.error("Firebase Initialization Error:", e);
-    alert("서버 연결에 실패했습니다. API 키 또는 네트워크 설정을 확인해주세요.");
 }
 
 // ====================================================================
@@ -113,90 +109,66 @@ document.addEventListener('DOMContentLoaded', async () => {
     const showToast = (msg) => {
         const t = document.createElement('div');
         t.className = 'toast show';
-        t.style.cssText = "position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#333; color:white; padding:12px 24px; border-radius:50px; z-index:9999; font-size:14px; box-shadow:0 10px 20px rgba(0,0,0,0.2);";
+        t.style.cssText = "position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#333; color:white; padding:12px 24px; border-radius:50px; z-index:9999; font-size:14px; box-shadow:0 10px 20px rgba(0,0,0,0.2); transition: 0.3s opacity;";
         t.textContent = msg;
         document.body.appendChild(t);
         setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, 3000);
     };
 
-    // --- Google Login (Popup with Redirect Fallback) ---
+    // --- Image Compression (Crucial for Firestore 1MB limit) ---
+    const compressImage = (imgElement) => {
+        return new Promise((resolve) => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 450; // Smaller size to ensure safety
+            let width = imgElement.width;
+            let height = imgElement.height;
+            if (width > MAX_WIDTH) { height = (MAX_WIDTH / width) * height; width = MAX_WIDTH; }
+            canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(imgElement, 0, 0, width, height);
+            // Higher compression to stay under 1MB even for complex images
+            resolve(canvas.toDataURL('image/jpeg', 0.5)); 
+        });
+    };
+
+    // --- Google Login ---
     googleLoginBtn?.addEventListener('click', async () => {
         const provider = new firebase.auth.GoogleAuthProvider();
         googleLoginBtn.disabled = true;
         googleLoginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CONNECTING...';
-        
         try {
-            // First try Popup (faster, better UX)
             const result = await auth.signInWithPopup(provider);
             if (result.user) {
                 showToast('WELCOME, ' + (result.user.displayName || 'USER'));
                 authModal.style.display = 'none';
             }
         } catch (error) {
-            console.warn('Popup blocked or failed, trying Redirect...', error.code);
-            if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
-                // Fallback to Redirect
-                await auth.signInWithRedirect(provider);
-            } else {
-                console.error('Auth Error:', error);
-                showToast('AUTH ERROR: ' + error.message);
-                googleLoginBtn.disabled = false;
-                googleLoginBtn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18"> Continue with Google';
-            }
+            if (error.code === 'auth/popup-blocked') await auth.signInWithRedirect(provider);
+            else { showToast('AUTH ERROR: ' + error.message); googleLoginBtn.disabled = false; }
         }
     });
 
-    // Handle Redirect Result
     auth.getRedirectResult().then((result) => {
-        if (result && result.user) {
-            showToast('WELCOME BACK, ' + (result.user.displayName || 'USER'));
-            authModal.style.display = 'none';
-        }
-    }).catch((error) => {
-        console.error('Redirect Result Error:', error);
-        if (error.code === 'auth/unauthorized-domain') {
-            alert('현재 도메인이 Firebase 승인 도메인에 등록되지 않았습니다.');
-        }
+        if (result && result.user) { showToast('WELCOME BACK'); authModal.style.display = 'none'; }
     });
 
-    // --- Auth Logic (Email/Pass) ---
+    // --- Auth Logic ---
     authForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const submitBtn = document.getElementById('auth-submit');
         const id = authIdInput.value.trim();
         const pw = authPassword.value;
         const isSignUp = document.getElementById('modal-title').textContent.includes('Account');
-
-        if (!id || pw.length < 6) {
-            return showToast('아이디와 6자리 이상의 비밀번호를 입력해주세요.');
-        }
-
         let email = id.includes('@') ? id : `${id.toLowerCase()}@mycloset.com`;
 
         try {
             submitBtn.disabled = true;
-            submitBtn.textContent = isSignUp ? 'CREATING...' : 'SIGNING IN...';
-
-            if (isSignUp) {
-                await auth.createUserWithEmailAndPassword(email, pw);
-                showToast('ACCOUNT CREATED SUCCESS');
-            } else {
-                await auth.signInWithEmailAndPassword(email, pw);
-                showToast('WELCOME BACK');
-            }
+            if (isSignUp) await auth.createUserWithEmailAndPassword(email, pw);
+            else await auth.signInWithEmailAndPassword(email, pw);
             authModal.style.display = 'none';
         } catch (err) {
-            console.error('Auth Error:', err.code, err.message);
-            let msg = '인증 오류가 발생했습니다.';
-            if (err.code === 'auth/email-already-in-use') msg = '이미 사용 중인 아이디입니다.';
-            else if (err.code === 'auth/weak-password') msg = '비밀번호가 너무 취약합니다 (6자 이상 권장).';
-            else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') msg = '아이디 또는 비밀번호가 틀렸습니다.';
-            else if (err.code === 'auth/invalid-email') msg = '올바르지 않은 이메일 형식입니다.';
-            showToast(msg);
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.textContent = isSignUp ? 'Sign Up' : 'Sign In';
-        }
+            showToast(err.message);
+        } finally { submitBtn.disabled = false; }
     });
 
     auth.onAuthStateChanged(user => {
@@ -207,18 +179,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadItems();
     });
 
-    // --- Image Upload & Load Items (Simplified for focus on Auth) ---
+    // --- Image Upload ---
     dropZone.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0]; if (!file) return;
-        dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-wand-sparkles fa-spin" style="font-size:40px; color:#E8B4A0;"></i><p style="margin-top:15px;">ANALYZING...</p></div>`;
+        dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-wand-sparkles fa-spin" style="font-size:40px; color:#E8B4A0;"></i><p style="margin-top:15px;">OPTIMIZING...</p></div>`;
         
         const reader = new FileReader();
         reader.onloadend = () => {
             const img = new Image();
             img.src = reader.result;
             img.onload = async () => {
-                optimizedBase64Image = reader.result; // Simplified
+                optimizedBase64Image = await compressImage(img);
                 dropZone.innerHTML = `<img src="${optimizedBase64Image}" style="max-height:100%; max-width:100%; object-fit:contain; border-radius:15px;">`;
                 if (net) {
                     const predictions = await net.classify(img);
@@ -227,6 +199,50 @@ document.addEventListener('DOMContentLoaded', async () => {
             };
         };
         reader.readAsDataURL(file);
+    });
+
+    // --- Collection Management ---
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (!optimizedBase64Image) return showToast('UPLOAD IMAGE FIRST');
+        
+        const itemData = { 
+            name: nameInput.value || 'UNTITLED ITEM', 
+            category: categoryInput.value, 
+            imageSrc: optimizedBase64Image, 
+            createdAt: Date.now() 
+        };
+        
+        try {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'SAVING...';
+            
+            if (currentUser) {
+                // To avoid "Size limit exceeded" error, we check length of base64 string
+                // 1MB is about 1,000,000 characters in Base64
+                if (optimizedBase64Image.length > 1000000) {
+                    throw new Error("이미지 용량이 너무 큽니다. 더 작은 사진을 사용해주세요.");
+                }
+                await db.collection('wardrobes').doc(currentUser.uid).collection('items').add(itemData);
+            } else {
+                const items = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]');
+                items.push({ ...itemData, id: 'trial_' + Date.now() });
+                localStorage.setItem(CLOSET_KEY, JSON.stringify(items));
+            }
+            
+            showToast('ADDED TO COLLECTION');
+            form.reset();
+            optimizedBase64Image = null;
+            dropZone.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><p>READY TO ANALYZE</p>';
+            await loadItems(); // Refresh gallery
+        } catch (err) {
+            console.error('Save Error:', err);
+            alert('저장에 실패했습니다: ' + err.message);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'ADD TO COLLECTION';
+        }
     });
 
     const loadItems = async () => {
@@ -240,14 +256,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 items = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]');
             }
-            gallery.innerHTML = items.length ? '' : '<p style="grid-column:1/-1; text-align:center; opacity:0.5; padding:40px;">저장된 아이템이 없습니다.</p>';
-            items.forEach(data => {
-                const el = document.createElement('closet-item');
-                el.setAttribute('name', data.name); el.setAttribute('category', data.category);
-                el.setAttribute('image-src', data.imageSrc); el.setAttribute('item-id', data.id);
-                gallery.appendChild(el);
-            });
-        } catch (e) { console.error("Load Error:", e); }
+            
+            gallery.innerHTML = '';
+            if (items.length === 0) {
+                gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.5; padding:40px;">저장된 아이템이 없습니다.</p>';
+            } else {
+                items.forEach(data => {
+                    const el = document.createElement('closet-item');
+                    el.setAttribute('name', data.name); el.setAttribute('category', data.category);
+                    el.setAttribute('image-src', data.imageSrc); el.setAttribute('item-id', data.id);
+                    gallery.appendChild(el);
+                });
+            }
+            const countEl = document.getElementById('item-count');
+            if (countEl) countEl.textContent = items.length;
+        } catch (e) { 
+            console.error("Load Error:", e);
+            gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:red;">로딩 오류가 발생했습니다.</p>';
+        }
     };
 
     authBtn.addEventListener('click', () => {
@@ -259,9 +285,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     switchToSignup.addEventListener('click', (e) => {
         e.preventDefault();
-        const isLogin = document.getElementById('auth-submit').textContent === 'Sign In';
-        document.getElementById('auth-submit').textContent = isLogin ? 'Sign Up' : 'Sign In';
+        const submit = document.getElementById('auth-submit');
+        const isLogin = submit.textContent === 'Sign In';
+        submit.textContent = isLogin ? 'Sign Up' : 'Sign In';
         document.getElementById('modal-title').textContent = isLogin ? 'Create Account' : 'Login';
         e.target.textContent = isLogin ? 'Login here' : 'Create an account';
+    });
+
+    document.addEventListener('delete-item', async (e) => {
+        if (!confirm('아이템을 삭제하시겠습니까?')) return;
+        const id = e.detail.id;
+        try {
+            if (id.startsWith('trial_')) {
+                const items = JSON.parse(localStorage.getItem(CLOSET_KEY) || '[]').filter(i => i.id !== id);
+                localStorage.setItem(CLOSET_KEY, JSON.stringify(items));
+            } else {
+                await db.collection('wardrobes').doc(currentUser.uid).collection('items').doc(id).delete();
+            }
+            loadItems();
+        } catch (err) { alert('삭제 실패: ' + err.message); }
     });
 });
