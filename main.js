@@ -132,15 +132,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // Handle redirect result
-    auth.getRedirectResult().then((result) => {
-        if (result.user) {
-            showToast('GOOGLE LOGIN SUCCESS');
-            authModal.style.display = 'none';
-        }
-    }).catch((error) => {
-        console.error('Redirect Result Error:', error);
-    });
+    // Handle redirect result with better error logging
+    auth.getRedirectResult()
+        .then((result) => {
+            if (result && result.user) {
+                console.log('Google Login Success:', result.user.email);
+                showToast('GOOGLE LOGIN SUCCESS');
+                authModal.style.display = 'none';
+            }
+        })
+        .catch((error) => {
+            console.error('Redirect Result Error (Detailed):', error.code, error.message);
+            if (error.code === 'auth/unauthorized-domain') {
+                showToast('ERROR: DOMAIN NOT AUTHORIZED');
+                alert('Firebase 콘솔의 [Authentication > Settings > Authorized domains]에 현재 도메인을 추가해야 합니다.');
+            } else {
+                showToast('AUTH ERROR: ' + error.code);
+            }
+        });
 
     // --- Auth Logic ---
     authBtn.addEventListener('click', () => {
