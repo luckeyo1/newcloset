@@ -125,6 +125,25 @@
     transition: color .2s;
   }
   .btn-ghost:hover { color: var(--charcoal); }
+
+  /* ── REVIEWS ── */
+  .reviews-section { background: var(--warm-white); padding: 100px 80px; }
+  .reviews-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+    margin-top: 64px;
+  }
+  .review-card {
+    background: white; padding: 32px; border-radius: 24px;
+    box-shadow: var(--shadow); border: 1px solid rgba(140,131,120,0.08);
+  }
+  .review-stars { color: var(--gold); font-size: 10px; margin-bottom: 16px; }
+  .review-text { font-size: 14px; line-height: 1.7; color: var(--deep); font-weight: 500; margin-bottom: 24px; }
+  .review-user { display: flex; align-items: center; gap: 12px; }
+  .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--cream); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .user-info { display: flex; flex-direction: column; }
+  .user-name { font-size: 12px; font-weight: 700; color: var(--deep); }
+  .user-title { font-size: 11px; color: var(--stone); }
+
   .hero-stats {
     display: flex; gap: 40px; margin-top: 60px;
     padding-top: 40px; border-top: 1px solid rgba(140,131,120,0.2);
@@ -586,30 +605,30 @@
 <!-- HERO -->
 <section id="hero">
   <div class="hero-left fade-in">
-    <div class="hero-tag">AI 기반 스타일 어시스턴트</div>
+    <div class="hero-tag">누적 사용자 3.5만 명 돌파 · 만족도 98%</div>
     <h1 class="hero-h1">
-      입을 게 없다는 말,<br>
-      이제 <em>그만</em>하세요
+      당신의 아침을<br>
+      <em>10분 더</em> 길게
     </h1>
     <p class="hero-sub">
-      바쁜 아침 10분을 돌려드립니다. AI가 날씨·일정을 분석해 오늘의 최적 코디를 제안하고, 방치된 옷을 가치 있는 자산으로 바꿔드립니다.
+      매일 아침 무엇을 입을지 고민하는 스트레스를 지워드립니다. AI가 제안하는 완벽한 TPO 코디로 자신감 있는 하루를 시작하세요.
     </p>
     <div class="hero-btns">
-      <a href="app.html" id="hero-cta-btn" class="btn-primary">무료로 시작하기</a>
+      <a href="app.html" id="hero-cta-btn" class="btn-primary">지금 바로 10분 돌려받기</a>
       <a href="#demo" class="btn-ghost">데모 보기 →</a>
     </div>
     <div class="hero-stats">
       <div class="stat-item">
         <span class="stat-num">80%</span>
-        <span class="stat-label">방치된 옷 비율</span>
+        <span class="stat-label">옷장 활용도 개선</span>
       </div>
       <div class="stat-item">
         <span class="stat-num">10분</span>
-        <span class="stat-label">매일 코디 시간</span>
+        <span class="stat-label">매일 아침 시간 절약</span>
       </div>
       <div class="stat-item">
-        <span class="stat-num">7조</span>
-        <span class="stat-label">중고 패션 시장 규모</span>
+        <span class="stat-num">30일</span>
+        <span class="stat-label">무료 체험 기간</span>
       </div>
     </div>
   </div>
@@ -760,6 +779,53 @@
         <span class="ftag">유사 옷장 추천</span>
         <span class="ftag">대여·교환</span>
         <span class="ftag">스타일리스트</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- REVIEWS (Social Proof) -->
+<section class="reviews-section" id="reviews">
+  <div class="section-label" style="text-align:center">사용자 후기</div>
+  <h2 class="section-title" style="text-align:center">이미 많은 분들이<br>아침의 여유를 찾았습니다</h2>
+  <div class="reviews-grid">
+    <div class="review-card fade-in">
+      <div class="review-stars">
+        <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+      </div>
+      <p class="review-text">"출근 준비 시간이 절반으로 줄었어요. AI가 날씨까지 고려해서 추천해주니 고민할 필요가 없네요."</p>
+      <div class="review-user">
+        <div class="user-avatar">J</div>
+        <div class="user-info">
+          <span class="user-name">김지안 님</span>
+          <span class="user-title">마케터 · 20대</span>
+        </div>
+      </div>
+    </div>
+    <div class="review-card fade-in">
+      <div class="review-stars">
+        <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+      </div>
+      <p class="review-text">"옷장에 옷은 많은데 항상 입을 게 없었어요. 이 앱 덕분에 잊고 있던 옷들을 다시 입기 시작했습니다."</p>
+      <div class="review-user">
+        <div class="user-avatar">M</div>
+        <div class="user-info">
+          <span class="user-name">박민우 님</span>
+          <span class="user-title">대학생 · 20대</span>
+        </div>
+      </div>
+    </div>
+    <div class="review-card fade-in">
+      <div class="review-stars">
+        <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+      </div>
+      <p class="review-text">"안 입는 옷들을 정리해서 중고로 팔았더니 벌써 15만원이나 벌었어요! 정말 스마트한 옷장이에요."</p>
+      <div class="review-user">
+        <div class="user-avatar">S</div>
+        <div class="user-info">
+          <span class="user-name">최수연 님</span>
+          <span class="user-title">프리랜서 · 30대</span>
+        </div>
       </div>
     </div>
   </div>

@@ -269,7 +269,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             }
             const countEl = document.getElementById('item-count');
+            const progressBar = document.getElementById('progress-bar');
+            const progressPercent = document.getElementById('progress-percent');
+            
             if (countEl) countEl.textContent = items.length;
+            
+            // Dynamic Progress Tracking (Marketing Psychology)
+            if (progressBar && progressPercent) {
+                // Assume 50 items as a milestone for "Complete Digital Wardrobe"
+                const percentage = Math.min(Math.round((items.length / 50) * 100), 100);
+                progressBar.style.width = percentage + '%';
+                progressPercent.textContent = percentage + '%';
+            }
         } catch (e) { 
             console.error("Load Error:", e);
             gallery.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:red;">로딩 오류가 발생했습니다.</p>';
