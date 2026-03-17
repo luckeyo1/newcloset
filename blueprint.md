@@ -15,8 +15,10 @@ A modern, AI-powered digital closet application that allows users to upload, cat
 ## **3. Technology Stack**
 - **Frontend:** HTML5, CSS3 (Modern Baseline: :has(), Container Queries, OKLCH), Vanilla JS.
 - **AI/ML (Local):** TensorFlow.js (MobileNet) — *Self-hosted in /lib for Tracking Prevention bypass.*
-- **Icons:** Font Awesome 6.
-- **Fonts:** Pretendard (Korean optimized).
+- **Icons:** Font Awesome 6 (Solid/Regular).
+- **Fonts:** Pretendard (Korean optimized sans-serif) and DM Serif Display (Elegant heading font).
+- **Imagery:** High-quality placeholder images from Unsplash for realistic app previews.
+- **Visual Style:** Premium aesthetic with glassmorphism, subtle background texture, and deep shadows.
 - **Storage:** Browser `localStorage`.
 - **Hosting:** Cloudflare Pages (https://newcloset.pages.dev/)
 - **Repository:** GitHub (https://github.com/luckeyo1/newcloset)

@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>버츄얼 옷장 — 나를 위한 하루</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600;700&family=DM+Serif+Display:ital@0;1&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
 <style>
   :root {
@@ -19,6 +20,7 @@
     --card-bg: rgba(255,255,255,0.7);
     --shadow: 0 8px 40px rgba(44,36,32,0.12);
     --radius: 20px;
+    --font-main: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -28,9 +30,11 @@
   body {
     background: var(--cream);
     color: var(--charcoal);
-    font-family: 'Noto Sans KR', sans-serif;
+    font-family: var(--font-main);
     min-height: 100vh;
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   /* ── NAV ── */
@@ -172,24 +176,36 @@
   .outfit-cards { display: flex; gap: 8px; }
   .outfit-card {
     flex: 1; background: var(--cream);
-    border-radius: 12px; padding: 12px 8px;
+    border-radius: 12px; padding: 4px;
     text-align: center; cursor: pointer;
     border: 2px solid transparent;
     transition: all .2s;
+    overflow: hidden;
   }
   .outfit-card.active { border-color: var(--blush); background: rgba(232,180,160,0.1); }
-  .outfit-emoji { font-size: 24px; display: block; margin-bottom: 4px; }
-  .outfit-label { font-size: 9px; color: var(--stone); }
+  .outfit-image { 
+    width: 100%; height: 50px; 
+    object-fit: cover; 
+    border-radius: 8px; 
+    margin-bottom: 4px; 
+    display: block;
+  }
+  .outfit-label { font-size: 9px; color: var(--stone); font-weight: 600; }
   .phone-items { display: flex; flex-direction: column; gap: 8px; }
   .phone-item {
     display: flex; align-items: center; gap: 10px;
-    background: white; border-radius: 12px; padding: 10px;
+    background: white; border-radius: 12px; padding: 8px;
     box-shadow: 0 2px 8px rgba(44,36,32,0.06);
   }
-  .item-emoji { font-size: 20px; width: 36px; height: 36px; background: var(--cream); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .item-image { 
+    width: 40px; height: 40px; 
+    object-fit: cover; 
+    background: var(--cream); 
+    border-radius: 8px; 
+  }
   .item-info { flex: 1; }
-  .item-name { font-size: 11px; font-weight: 600; color: var(--deep); }
-  .item-meta { font-size: 9px; color: var(--stone); margin-top: 2px; }
+  .item-name { font-size: 11px; font-weight: 700; color: var(--deep); }
+  .item-meta { font-size: 9px; color: var(--stone); margin-top: 1px; }
   .item-badge { font-size: 9px; padding: 2px 7px; border-radius: 100px; background: rgba(155,173,154,0.2); color: var(--sage); font-weight: 600; }
 
   .deco-circle1 {
@@ -243,12 +259,14 @@
   .feature-icon {
     width: 56px; height: 56px; border-radius: 16px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 24px; margin-bottom: 24px;
+    font-size: 20px; margin-bottom: 24px;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
-  .fi-1 { background: rgba(232,180,160,0.2); }
-  .fi-2 { background: rgba(155,173,154,0.2); }
-  .fi-3 { background: rgba(201,169,110,0.2); }
-  .fi-4 { background: rgba(140,131,120,0.1); }
+  .feature-card:hover .feature-icon { transform: scale(1.1) rotate(5deg); }
+  .fi-1 { background: rgba(232,180,160,0.15); color: var(--blush); }
+  .fi-2 { background: rgba(155,173,154,0.15); color: var(--sage); }
+  .fi-3 { background: rgba(201,169,110,0.15); color: var(--gold); }
+  .fi-4 { background: rgba(140,131,120,0.1); color: var(--stone); }
   .feature-title { font-size: 22px; font-weight: 700; color: var(--deep); margin-bottom: 12px; letter-spacing: -0.5px; }
   .feature-desc { font-size: 14px; color: var(--stone); line-height: 1.7; font-weight: 300; }
   .feature-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
@@ -298,8 +316,15 @@
     font-size: 48px; color: rgba(245,240,232,0.08); line-height: 1;
     margin-bottom: 20px;
   }
-  .step-icon { font-size: 28px; margin-bottom: 16px; }
-  .step-title { font-size: 16px; font-weight: 700; color: var(--cream); margin-bottom: 10px; }
+  .step-icon { 
+    font-size: 24px; 
+    margin-bottom: 20px; 
+    color: var(--gold); 
+    height: 40px; 
+    display: flex; 
+    align-items: center; 
+  }
+  .step-title { font-size: 16px; font-weight: 700; color: var(--cream); margin-bottom: 12px; }
   .step-desc { font-size: 13px; color: rgba(245,240,232,0.5); line-height: 1.65; font-weight: 300; }
   .step-arrow {
     position: absolute; right: -13px; top: 50%; transform: translateY(-50%);
@@ -326,7 +351,7 @@
   .tb-url {
     flex: 1; background: rgba(255,255,255,0.08); border-radius: 8px;
     padding: 6px 14px; font-size: 12px; color: rgba(255,255,255,0.5);
-    font-family: monospace;
+    font-family: 'JetBrains Mono', monospace;
   }
   .demo-layout { display: grid; grid-template-columns: 220px 1fr; min-height: 560px; }
   .demo-sidebar {
@@ -347,7 +372,7 @@
     box-shadow: 0 2px 12px rgba(44,36,32,0.08);
   }
   .snav-item.active { color: var(--blush); }
-  .snav-icon { font-size: 16px; }
+  .snav-icon { font-size: 14px; }
   .demo-main { padding: 32px; display: flex; flex-direction: column; gap: 24px; overflow: hidden; }
   .demo-greeting { display: flex; justify-content: space-between; align-items: flex-start; }
   .greeting-text h2 { font-family: 'DM Serif Display', serif; font-size: 24px; color: var(--deep); }
@@ -356,7 +381,7 @@
     width: 44px; height: 44px; border-radius: 50%;
     background: linear-gradient(135deg, var(--blush), var(--gold));
     display: flex; align-items: center; justify-content: center;
-    font-size: 20px;
+    font-size: 18px; color: white;
   }
   .demo-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
   .dcard {
@@ -371,15 +396,17 @@
   .dbottom-title { font-size: 13px; font-weight: 700; color: var(--deep); margin-bottom: 16px; }
   .outfit-row { display: flex; gap: 8px; }
   .oc {
-    flex: 1; background: white; border-radius: 12px; padding: 12px 8px;
+    flex: 1; background: white; border-radius: 12px; padding: 8px 4px;
     text-align: center; font-size: 11px; color: var(--stone);
     border: 2px solid transparent; cursor: pointer; transition: all .2s;
+    overflow: hidden;
   }
   .oc:hover, .oc.sel { border-color: var(--blush); color: var(--blush); background: rgba(232,180,160,0.08); }
-  .oc-icon { font-size: 22px; display: block; margin-bottom: 4px; }
+  .oc-thumb { width: 100%; height: 40px; object-fit: cover; border-radius: 6px; margin-bottom: 4px; display: block; }
+  .oc-label { display: block; font-weight: 600; }
   .resale-list { display: flex; flex-direction: column; gap: 8px; }
   .resale-item { display: flex; align-items: center; gap: 10px; background: white; border-radius: 10px; padding: 10px 12px; }
-  .ri-icon { font-size: 18px; }
+  .ri-thumb { width: 32px; height: 32px; object-fit: cover; border-radius: 6px; }
   .ri-name { font-size: 12px; font-weight: 600; color: var(--deep); }
   .ri-price { font-size: 11px; color: var(--sage); margin-top: 2px; }
   .ri-btn {
@@ -387,6 +414,7 @@
     background: var(--charcoal); color: white; border-radius: 100px;
     border: none; cursor: pointer; font-weight: 600;
     transition: background .2s;
+    font-family: var(--font-main);
   }
   .ri-btn:hover { background: var(--deep); }
 
@@ -599,27 +627,27 @@
             <div class="weather-temp">18°C</div>
             <div class="weather-desc">맑음 · 약간 쌀쌀</div>
           </div>
-          <div class="weather-icon">☀️</div>
+          <div class="weather-icon"><i class="fa-solid fa-sun"></i></div>
         </div>
         <div class="phone-section-title">오늘의 코디 추천</div>
         <div class="outfit-cards">
           <div class="outfit-card active">
-            <span class="outfit-emoji">💼</span>
+            <img src="https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&q=80&w=200" alt="회의" class="outfit-image">
             <div class="outfit-label">회의</div>
           </div>
           <div class="outfit-card">
-            <span class="outfit-emoji">☕</span>
+            <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=200" alt="캐주얼" class="outfit-image">
             <div class="outfit-label">캐주얼</div>
           </div>
           <div class="outfit-card">
-            <span class="outfit-emoji">🌙</span>
+            <img src="https://images.unsplash.com/photo-1539109132314-347f85417cd0?auto=format&fit=crop&q=80&w=200" alt="저녁 약속" class="outfit-image">
             <div class="outfit-label">저녁 약속</div>
           </div>
         </div>
         <div class="phone-section-title">추천 아이템</div>
         <div class="phone-items">
           <div class="phone-item">
-            <div class="item-emoji">🧥</div>
+            <img src="https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&q=80&w=200" alt="블레이저" class="item-image">
             <div class="item-info">
               <div class="item-name">네이비 블레이저</div>
               <div class="item-meta">3주 전 마지막 착용</div>
@@ -627,7 +655,7 @@
             <span class="item-badge">추천</span>
           </div>
           <div class="phone-item">
-            <div class="item-emoji">👕</div>
+            <img src="https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=200" alt="셔츠" class="item-image">
             <div class="item-info">
               <div class="item-name">화이트 셔츠</div>
               <div class="item-meta">어제 착용</div>
@@ -635,7 +663,7 @@
             <span class="item-badge">✓</span>
           </div>
           <div class="phone-item">
-            <div class="item-emoji">👖</div>
+            <img src="https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&q=80&w=200" alt="슬랙스" class="item-image">
             <div class="item-info">
               <div class="item-name">슬림 슬랙스</div>
               <div class="item-meta">5일 전 착용</div>
@@ -658,7 +686,7 @@
     <div class="feature-card large fade-in">
       <div>
         <div class="feature-num">01</div>
-        <div class="feature-icon fi-1">📸</div>
+        <div class="feature-icon fi-1"><i class="fa-solid fa-camera"></i></div>
         <div class="feature-title">Zero-Effort 디지털 인벤토리</div>
         <div class="feature-desc">
           사진 한 장으로 옷을 자동 분류합니다. AI가 색상, 소재, 카테고리, 계절을 자동으로 태깅하고, 무신사·W컨셉 등 쇼핑몰과 카드 내역을 연동해 구매한 옷을 클릭 한 번으로 등록합니다.
@@ -701,7 +729,7 @@
 
     <div class="feature-card fade-in">
       <div class="feature-num">02</div>
-      <div class="feature-icon fi-2">🌤️</div>
+      <div class="feature-icon fi-2"><i class="fa-solid fa-cloud-sun"></i></div>
       <div class="feature-title">AI 모닝 컨시어지</div>
       <div class="feature-desc">날씨·일정·선호 스타일을 조합해 매일 아침 최적의 코디 3종을 제안합니다. 아바타 가상 피팅으로 실제 착용 전 핏을 확인하고, 옷장 회전율 리포트로 방치된 옷을 발굴합니다.</div>
       <div class="feature-tags">
@@ -713,7 +741,7 @@
 
     <div class="feature-card fade-in">
       <div class="feature-num">03</div>
-      <div class="feature-icon fi-3">♻️</div>
+      <div class="feature-icon fi-3"><i class="fa-solid fa-recycle"></i></div>
       <div class="feature-title">원클릭 순환 경제</div>
       <div class="feature-desc">일정 기간 입지 않은 옷을 방치 자산으로 분류해 중고 판매·기부·수선을 제안합니다. 번개장터·당근과 연동해 사진과 설명을 자동으로 업로드하거나 자체 매입으로 즉시 현금화합니다.</div>
       <div class="feature-tags">
@@ -725,7 +753,7 @@
 
     <div class="feature-card fade-in">
       <div class="feature-num">04</div>
-      <div class="feature-icon fi-4">👥</div>
+      <div class="feature-icon fi-4"><i class="fa-solid fa-users"></i></div>
       <div class="feature-title">소셜 클로젯 네트워크</div>
       <div class="feature-desc">나와 비슷한 옷장을 가진 사람의 코디를 탐색하고, 신뢰 기반 커뮤니티에서 옷을 빌리거나 교환합니다. 전문 스타일리스트의 유료 큐레이션으로 스타일 한계를 넘어보세요.</div>
       <div class="feature-tags">
@@ -745,28 +773,28 @@
   <div class="steps">
     <div class="step fade-in">
       <div class="step-num">01</div>
-      <div class="step-icon">📲</div>
+      <div class="step-icon"><i class="fa-solid fa-mobile-screen-button"></i></div>
       <div class="step-title">앱 설치 & 가입</div>
       <div class="step-desc">소셜 로그인으로 30초 만에 가입하고 기본 스타일 프로필을 완성합니다.</div>
       <div class="step-arrow">›</div>
     </div>
     <div class="step fade-in">
       <div class="step-num">02</div>
-      <div class="step-icon">👗</div>
+      <div class="step-icon"><i class="fa-solid fa-shirt"></i></div>
       <div class="step-title">옷장 디지털화</div>
       <div class="step-desc">쇼핑몰 연동 혹은 사진 촬영으로 AI가 자동으로 옷을 분류하고 등록합니다.</div>
       <div class="step-arrow">›</div>
     </div>
     <div class="step fade-in">
       <div class="step-num">03</div>
-      <div class="step-icon">✨</div>
+      <div class="step-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
       <div class="step-title">매일 아침 코디 받기</div>
       <div class="step-desc">오늘의 날씨와 일정에 맞춰 AI가 최적의 코디 3종을 추천해드립니다.</div>
       <div class="step-arrow">›</div>
     </div>
     <div class="step fade-in">
       <div class="step-num">04</div>
-      <div class="step-icon">💰</div>
+      <div class="step-icon"><i class="fa-solid fa-coins"></i></div>
       <div class="step-title">방치 옷 가치 회복</div>
       <div class="step-desc">오래 입지 않은 옷을 중고 거래나 기부로 연결해 옷장을 정돈합니다.</div>
     </div>
@@ -790,11 +818,11 @@
       <div class="demo-sidebar">
         <div class="demo-sidebar-logo">V<span>옷장</span></div>
         <nav class="sidebar-nav">
-          <div class="snav-item active" onclick="switchTab(this,'dashboard')"><span class="snav-icon">🏠</span> 대시보드</div>
-          <div class="snav-item" onclick="switchTab(this,'closet')"><span class="snav-icon">👗</span> 내 옷장</div>
-          <div class="snav-item" onclick="switchTab(this,'today')"><span class="snav-icon">🌤️</span> 오늘의 코디</div>
-          <div class="snav-item" onclick="switchTab(this,'recycle')"><span class="snav-icon">♻️</span> 중고 판매</div>
-          <div class="snav-item" onclick="switchTab(this,'social')"><span class="snav-icon">👥</span> 소셜 클로젯</div>
+          <div class="snav-item active" onclick="switchTab(this,'dashboard')"><i class="fa-solid fa-house snav-icon"></i> 대시보드</div>
+          <div class="snav-item" onclick="switchTab(this,'closet')"><i class="fa-solid fa-shirt snav-icon"></i> 내 옷장</div>
+          <div class="snav-item" onclick="switchTab(this,'today')"><i class="fa-solid fa-cloud-sun snav-icon"></i> 오늘의 코디</div>
+          <div class="snav-item" onclick="switchTab(this,'recycle')"><i class="fa-solid fa-recycle snav-icon"></i> 중고 판매</div>
+          <div class="snav-item" onclick="switchTab(this,'social')"><i class="fa-solid fa-users snav-icon"></i> 소셜 클로젯</div>
         </nav>
       </div>
       <div class="demo-main" id="demo-content">
@@ -804,7 +832,7 @@
             <h2>안녕하세요 👋</h2>
             <p>오늘도 멋진 하루 시작해볼까요?</p>
           </div>
-          <div class="greeting-avatar">👤</div>
+          <div class="greeting-avatar"><i class="fa-solid fa-user"></i></div>
         </div>
         <div class="demo-cards">
           <div class="dcard">
@@ -828,13 +856,16 @@
             <div class="dbottom-title">오늘의 코디 추천 ✨</div>
             <div class="outfit-row">
               <div class="oc sel" onclick="selectOutfit(this)">
-                <span class="oc-icon">💼</span>회의용
+                <img src="https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&q=80&w=100" class="oc-thumb">
+                <span class="oc-label">회의용</span>
               </div>
               <div class="oc" onclick="selectOutfit(this)">
-                <span class="oc-icon">☕</span>캐주얼
+                <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=100" class="oc-thumb">
+                <span class="oc-label">캐주얼</span>
               </div>
               <div class="oc" onclick="selectOutfit(this)">
-                <span class="oc-icon">🍽️</span>저녁 약속
+                <img src="https://images.unsplash.com/photo-1539109132314-347f85417cd0?auto=format&fit=crop&q=80&w=100" class="oc-thumb">
+                <span class="oc-label">저녁 약속</span>
               </div>
             </div>
           </div>
@@ -842,7 +873,7 @@
             <div class="dbottom-title">판매 추천 목록 💰</div>
             <div class="resale-list">
               <div class="resale-item">
-                <span class="ri-icon">🧥</span>
+                <img src="https://images.unsplash.com/photo-1539533113208-f6df8cc8b543?auto=format&fit=crop&q=80&w=100" class="ri-thumb">
                 <div>
                   <div class="ri-name">베이지 코트</div>
                   <div class="ri-price">예상 판매가 ₩45,000</div>
@@ -850,7 +881,7 @@
                 <button class="ri-btn" onclick="showToast('판매 등록 완료!')">등록</button>
               </div>
               <div class="resale-item">
-                <span class="ri-icon">👗</span>
+                <img src="https://images.unsplash.com/photo-1585487000160-6ebcfceb0d03?auto=format&fit=crop&q=80&w=100" class="ri-thumb">
                 <div>
                   <div class="ri-name">플로럴 원피스</div>
                   <div class="ri-price">예상 판매가 ₩28,000</div>
@@ -858,7 +889,7 @@
                 <button class="ri-btn" onclick="showToast('판매 등록 완료!')">등록</button>
               </div>
               <div class="resale-item">
-                <span class="ri-icon">👠</span>
+                <img src="https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&q=80&w=100" class="ri-thumb">
                 <div>
                   <div class="ri-name">힐 구두</div>
                   <div class="ri-price">예상 판매가 ₩32,000</div>
