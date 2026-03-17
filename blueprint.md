@@ -14,7 +14,7 @@ A modern, AI-powered digital closet application that allows users to upload, cat
 
 ## **3. Technology Stack**
 - **Frontend:** HTML5, CSS3 (Modern Baseline: :has(), Container Queries, OKLCH), Vanilla JS.
-- **AI/ML (Local):** TensorFlow.js (MobileNet).
+- **AI/ML (Local):** TensorFlow.js (MobileNet) — *Self-hosted in /lib for Tracking Prevention bypass.*
 - **Icons:** Font Awesome 6.
 - **Fonts:** Pretendard (Korean optimized).
 - **Storage:** Browser `localStorage`.
