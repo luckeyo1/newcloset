@@ -124,11 +124,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     googleLoginBtn?.addEventListener('click', async () => {
         const provider = new firebase.auth.GoogleAuthProvider();
         try {
+            googleLoginBtn.disabled = true;
+            googleLoginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CONNECTING...';
             // Using redirect instead of popup to avoid auth/popup-blocked error
             await auth.signInWithRedirect(provider);
         } catch (error) {
             console.error('Google Auth Error:', error);
-            showToast('LOGIN FAILED');
+            showToast('LOGIN FAILED: ' + error.message);
+            googleLoginBtn.disabled = false;
+            googleLoginBtn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18"> Continue with Google';
         }
     });
 
@@ -145,15 +149,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('Redirect Result Error (Detailed):', error.code, error.message);
             if (error.code === 'auth/unauthorized-domain') {
                 showToast('ERROR: DOMAIN NOT AUTHORIZED');
-                alert('Firebase 콘솔의 [Authentication > Settings > Authorized domains]에 현재 도메인을 추가해야 합니다.');
+                alert('Firebase 콘솔의 [Authentication > Settings > Authorized domains]에 현재 도메인을 추가해야 합니다. (예: localhost, newcloset.pages.dev)');
+            } else if (error.code === 'auth/popup-blocked') {
+                showToast('ERROR: POPUP BLOCKED');
             } else {
-                showToast('AUTH ERROR: ' + error.code);
+                showToast('AUTH ERROR: ' + (error.message || error.code));
             }
         });
 
     // --- Auth Logic ---
     authBtn.addEventListener('click', () => {
-        if (currentUser) { auth.signOut(); showToast('LOGGED OUT'); }
+        if (currentUser) { 
+            auth.signOut(); 
+            showToast('LOGGED OUT'); 
+            currentUser = null;
+            loadItems();
+        }
         else authModal.style.display = 'flex';
     });
 
@@ -161,15 +172,43 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     authForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const id = authIdInput.value;
-        const email = `${id.trim().toLowerCase()}@mycloset.com`;
+        const submitBtn = document.getElementById('auth-submit');
+        const id = authIdInput.value.trim();
         const pw = authPassword.value;
-        const isSignUp = document.getElementById('auth-submit').textContent === 'Sign Up';
+        const isSignUp = submitBtn.textContent === 'Sign Up';
+
+        // Robust email generation
+        let email = id;
+        if (!id.includes('@')) {
+            email = `${id.toLowerCase()}@mycloset.com`;
+        }
+
         try {
-            if (isSignUp) await auth.createUserWithEmailAndPassword(email, pw);
-            else await auth.signInWithEmailAndPassword(email, pw);
+            submitBtn.disabled = true;
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = isSignUp ? 'CREATING ACCOUNT...' : 'SIGNING IN...';
+
+            if (isSignUp) {
+                await auth.createUserWithEmailAndPassword(email, pw);
+                showToast('ACCOUNT CREATED');
+            } else {
+                await auth.signInWithEmailAndPassword(email, pw);
+                showToast('WELCOME BACK');
+            }
             authModal.style.display = 'none';
-        } catch (err) { showToast('AUTH ERROR'); }
+        } catch (err) {
+            console.error('Auth Error:', err.code, err.message);
+            let msg = 'AUTH ERROR';
+            if (err.code === 'auth/email-already-in-use') msg = 'EMAIL ALREADY IN USE';
+            else if (err.code === 'auth/weak-password') msg = 'PASSWORD TOO WEAK';
+            else if (err.code === 'auth/user-not-found') msg = 'USER NOT FOUND';
+            else if (err.code === 'auth/wrong-password') msg = 'WRONG PASSWORD';
+            else if (err.code === 'auth/invalid-email') msg = 'INVALID ID/EMAIL';
+            showToast(msg);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = isSignUp ? 'Sign Up' : 'Sign In';
+        }
     });
 
     auth.onAuthStateChanged(user => {

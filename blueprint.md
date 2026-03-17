@@ -31,7 +31,7 @@ A modern, AI-powered digital closet application that allows users to upload, cat
 - [x] **Basic Structure:** HTML/CSS/JS scaffolding complete.
 - [x] **Local AI:** MobileNet integration for basic categorization.
 - [x] **Firebase Integration:** API Key and Config updated in `main.js`.
-- [x] **Authentication Flow:** Updated Google Sign-In to use `signInWithRedirect` to fix `auth/popup-blocked` error.
+- [x] **Authentication Flow:** Updated Google Sign-In to use `signInWithRedirect` and added detailed error reporting for common failures (unauthorized domains, weak passwords, etc.). Improved ID/Email handling for robust signups.
 - [x] **Database Fix:** Firestore error handling and security rules instructions provided.
 - [ ] **Deployment:** Pending manual `firebase deploy` (Authentication required).
 - [ ] **API Integration:** Connect to a specialized Fashion Analysis API.
