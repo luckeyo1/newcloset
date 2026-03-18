@@ -284,7 +284,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 { name: '첼시 부츠 (Chelsea Boots)', reason: '세련된 발끝 마무리를 통해 전체적인 룩의 완성도를 높여줍니다.' },
                 { name: '클래식 블레이저 (Blazer)', reason: '포멀한 무드를 더해 비즈니스와 캐주얼을 넘나드는 스타일을 완성합니다.' }
             ],
-            guide: '상체에 시선이 머무는 코디입니다. 하의는 가급적 심플한 무채색 계열의 슬랙스를 추천하며, 가죽 소재의 신발로 고급스러움을 더해보세요.'
+            guide: '상체에 시선이 머무는 코디입니다. 하의는 가급적 심플한 무채색 계열의 슬랙스를 추천하며, 가죽 소재의 신발로 고급스러움을 더해보세요.',
+            keywords: ['minimal', 'office-look', 'casual-chic']
         },
         'Bottom': {
             items: [
@@ -292,7 +293,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 { name: '가죽 로퍼 (Loafers)', reason: '클래식한 로퍼는 하의의 핏을 더욱 돋보이게 하는 완벽한 파트너입니다.' },
                 { name: '미니멀 트렌치 코트', reason: '길게 떨어지는 코트 라인이 하의와 연결되어 비율이 좋아 보이는 효과를 줍니다.' }
             ],
-            guide: '하의가 주인공이 되는 룩입니다. 상의는 가벼운 소재보다는 어느 정도 무게감이 있는 니트나 셔츠를 레이어드하여 균형을 맞추는 것이 좋습니다.'
+            guide: '하의가 주인공이 되는 룩입니다. 상의는 가벼운 소재보다는 어느 정도 무게감이 있는 니트나 셔츠를 레이어드하여 균형을 맞추는 것이 좋습니다.',
+            keywords: ['street-style', 'autumn-vibes', 'modern-look']
         },
         'Outer': {
             items: [
@@ -300,7 +302,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 { name: '베이직 화이트 티셔츠', reason: '심플한 이너는 아우터 고유의 디자인과 색상을 가장 잘 살려줍니다.' },
                 { name: '클린 스니커즈', reason: '가벼운 스니커즈로 마무리하여 부담스럽지 않은 데일리 고프코어 룩을 완성하세요.' }
             ],
-            guide: '아우터의 색감이 강하다면 이너와 하의는 최대한 절제된 톤으로 맞추는 것이 핵심입니다. 레이어드를 통해 깊이감을 더해보세요.'
+            guide: '아우터의 색감이 강하다면 이너와 하의는 최대한 절제된 톤으로 맞추는 것이 핵심입니다. 레이어드를 통해 깊이감을 더해보세요.',
+            keywords: ['utility-wear', 'street-fashion', 'layering']
         },
         'Dress': {
             items: [
@@ -308,7 +311,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 { name: '스틸레토 힐 (Heels)', reason: '수직적인 라인을 강조하여 다리가 길어 보이고 우아한 실루엣을 완성합니다.' },
                 { name: '미니멀 클러치 백', reason: '작지만 확실한 포인트로 전체적인 코디에 긴장감과 세련미를 부여합니다.' }
             ],
-            guide: '원피스는 단벌로도 완성도가 높으므로, 액세서리와 신발의 선택이 중요합니다. 전체적으로 톤온톤 배색을 활용해 정돈된 느낌을 주거나, 보색 대비로 포인트를 주세요.'
+            guide: '원피스는 단벌로도 완성도가 높으므로, 액세서리와 신발의 선택이 중요합니다. 전체적으로 톤온톤 배색을 활용해 정돈된 느낌을 주거나, 보색 대비로 포인트를 주세요.',
+            keywords: ['romantic', 'date-night', 'elegant']
         },
         'Shoes': {
             items: [
@@ -316,7 +320,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 { name: '옥스퍼드 셔츠', reason: '깔끔한 셔츠는 신발이 주는 신뢰감 있는 인상을 한층 강화해줍니다.' },
                 { name: '브라운 가죽 벨트', reason: '신발의 소재나 색상과 통일감을 주어 안정적인 코디 밸런스를 잡아줍니다.' }
             ],
-            guide: '신발의 스타일(포멀 vs 캐주얼)에 따라 하의의 기장감을 조절해보세요. 양말의 색상이나 패턴으로 위트를 더하는 것도 좋은 방법입니다.'
+            guide: '신발의 스타일(포멀 vs 캐주얼)에 따라 하의의 기장감을 조절해보세요. 양말의 색상이나 패턴으로 위트를 더하는 것도 좋은 방법입니다.',
+            keywords: ['classic-style', 'heritage', 'gentleman']
         },
         'Acc': {
             items: [
@@ -324,7 +329,74 @@ document.addEventListener('DOMContentLoaded', async () => {
                 { name: '프리미엄 가죽 벨트', reason: '액세서리와 소재감을 통일하여 룩의 전체적인 퀄리티를 상향 평준화합니다.' },
                 { name: '실크 스카프', reason: '자칫 밋밋할 수 있는 코디에 부드러운 질감과 우아한 포인트를 추가합니다.' }
             ],
-            guide: '액세서리는 "과유불급"입니다. 메인 아이템을 돋보이게 할 수 있도록 의상은 심플하게 유지하고, 시선이 분산되지 않도록 주의하세요.'
+            guide: '액세서리는 "과유불급"입니다. 메인 아이템을 돋보이게 할 수 있도록 의상은 심플하게 유지하고, 시선이 분산되지 않도록 주의하세요.',
+            keywords: ['high-fashion', 'jewelry', 'detail']
+        }
+    };
+
+    // --- 공용 분석 패널 업데이트 함수 ---
+    const updateAnalysisPanel = (data) => {
+        const { name, category, color, confidence = 100 } = data;
+        const suggestions = getColorCoordination(color);
+        const recs = RECOMMENDATION_MAP[category] || RECOMMENDATION_MAP['Top'];
+        
+        const analysisContent = document.getElementById('analysis-content');
+        const coordinationList = document.getElementById('coordination-list');
+        const stylingGuideText = document.getElementById('styling-guide-text');
+        const moodGallery = document.getElementById('mood-gallery');
+        const aiStylingSections = document.getElementById('ai-styling-sections');
+
+        if (analysisContent) {
+            analysisContent.innerHTML = `
+                <div style="background:var(--cream); padding:20px; border-radius:16px; margin-top:10px; animation: fadeIn 0.5s ease-out;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                        <span style="font-size:12px; color:var(--stone); font-weight:700;">분석 결과</span>
+                        <span style="font-size:12px; color:var(--blush); font-weight:800;">AI 신뢰도: ${confidence}%</span>
+                    </div>
+                    <div style="font-size:18px; font-weight:700; color:var(--deep); margin-bottom:4px;">${name}</div>
+                    
+                    <div style="margin-top:15px; display:flex; align-items:center; gap:10px;">
+                        <div style="width:24px; height:24px; border-radius:50%; background:${color}; border:2px solid white; box-shadow:0 2px 5px rgba(0,0,0,0.1);"></div>
+                        <span style="font-size:12px; color:var(--stone); font-weight:600;">검출된 색상: ${color}</span>
+                    </div>
+
+                    <div style="margin-top:20px; padding-top:15px; border-top:1px solid rgba(0,0,0,0.05);">
+                        <p style="font-size:11px; color:var(--stone); margin-bottom:10px; font-weight:700;">추택 매칭 컬러 (코디 팁)</p>
+                        <div style="display:flex; gap:8px;">
+                            ${suggestions.map(c => `<div style="width:20px; height:20px; border-radius:4px; background:${c}; border:1px solid #eee;"></div>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (coordinationList && stylingGuideText && aiStylingSections) {
+            coordinationList.innerHTML = recs.items.map(item => `
+                <div class="recommendation-item" style="background:#fff; padding:20px; border-radius:20px; border:1px solid var(--border-soft); box-shadow:0 4px 15px rgba(0,0,0,0.03); transition:0.3s;">
+                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+                        <div style="width:32px; height:32px; border-radius:10px; background:rgba(232,180,160,0.15); display:flex; align-items:center; justify-content:center; color:var(--blush);">
+                            <i class="fa-solid fa-check" style="font-size:14px;"></i>
+                        </div>
+                        <span style="font-size:15px; font-weight:700; color:var(--deep);">${item.name}</span>
+                    </div>
+                    <p style="font-size:12px; color:var(--stone); line-height:1.5; padding-left:44px;">${item.reason}</p>
+                </div>
+            `).join('');
+            
+            stylingGuideText.textContent = recs.guide;
+            
+            if (moodGallery && recs.keywords) {
+                moodGallery.innerHTML = recs.keywords.map(keyword => `
+                    <img src="https://picsum.photos/seed/${keyword}/400/400" class="mood-img" alt="${keyword}" loading="lazy">
+                `).join('');
+            }
+            
+            aiStylingSections.style.display = 'block';
+            
+            // 모바일 배려: 분석 패널로 부드럽게 스크롤
+            if (window.innerWidth < 1100) {
+                document.getElementById('ai-analysis-panel').scrollIntoView({ behavior: 'smooth' });
+            }
         }
     };
 
@@ -350,9 +422,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         optimizedBase64Image = await compressImage(processedImg, 'image/png');
                         dropZone.innerHTML = `<img src="${optimizedBase64Image}" style="max-height:100%; max-width:100%; object-fit:contain; border-radius:15px;">`;
                         
-                        // Color Extraction
                         detectedColorHex = extractDominantColor(processedImg);
-                        const suggestions = getColorCoordination(detectedColorHex);
 
                         if (net) {
                             const predictions = await net.classify(processedImg);
@@ -371,52 +441,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 }
                             }
 
-                            const analysisContent = document.getElementById('analysis-content');
-                            if (analysisContent) {
-                                analysisContent.innerHTML = `
-                                    <div style="background:var(--cream); padding:20px; border-radius:16px; margin-top:10px;">
-                                        <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
-                                            <span style="font-size:12px; color:var(--stone); font-weight:700;">분석 결과</span>
-                                            <span style="font-size:12px; color:var(--blush); font-weight:800;">AI 신뢰도: ${confidence}%</span>
-                                        </div>
-                                        <div style="font-size:18px; font-weight:700; color:var(--deep); margin-bottom:4px;">${translatedName}</div>
-                                        
-                                        <div style="margin-top:15px; display:flex; align-items:center; gap:10px;">
-                                            <div style="width:24px; height:24px; border-radius:50%; background:${detectedColorHex}; border:2px solid white; box-shadow:0 2px 5px rgba(0,0,0,0.1);"></div>
-                                            <span style="font-size:12px; color:var(--stone); font-weight:600;">검출된 색상: ${detectedColorHex}</span>
-                                        </div>
-
-                                        <div style="margin-top:20px; padding-top:15px; border-top:1px solid rgba(0,0,0,0.05);">
-                                            <p style="font-size:11px; color:var(--stone); margin-bottom:10px; font-weight:700;">추천 매칭 컬러 (코디 팁)</p>
-                                            <div style="display:flex; gap:8px;">
-                                                ${suggestions.map(c => `<div style="width:20px; height:20px; border-radius:4px; background:${c}; border:1px solid #eee;"></div>`).join('')}
-                                            </div>
-                                        </div>
-                                    </div>
-                                `;
-                            }
-
-                            // Update Recommendations
-                            const recs = RECOMMENDATION_MAP[detectedCategory] || RECOMMENDATION_MAP['Top'];
-                            const coordinationList = document.getElementById('coordination-list');
-                            const stylingGuideText = document.getElementById('styling-guide-text');
-                            const aiStylingSections = document.getElementById('ai-styling-sections');
-
-                            if (coordinationList && stylingGuideText && aiStylingSections) {
-                                coordinationList.innerHTML = recs.items.map(item => `
-                                    <div class="recommendation-item" style="background:#fff; padding:20px; border-radius:20px; border:1px solid var(--border-soft); box-shadow:0 4px 15px rgba(0,0,0,0.03); transition:0.3s;">
-                                        <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
-                                            <div style="width:32px; height:32px; border-radius:10px; background:rgba(232,180,160,0.15); display:flex; align-items:center; justify-content:center; color:var(--blush);">
-                                                <i class="fa-solid fa-check" style="font-size:14px;"></i>
-                                            </div>
-                                            <span style="font-size:15px; font-weight:700; color:var(--deep);">${item.name}</span>
-                                        </div>
-                                        <p style="font-size:12px; color:var(--stone); line-height:1.5; padding-left:44px;">${item.reason}</p>
-                                    </div>
-                                `).join('');
-                                stylingGuideText.textContent = recs.guide;
-                                aiStylingSections.style.display = 'block';
-                            }
+                            // 공용 함수 호출하여 패널 업데이트
+                            updateAnalysisPanel({
+                                name: translatedName,
+                                category: detectedCategory,
+                                color: detectedColorHex,
+                                confidence: confidence
+                            });
                         }
                     };
                 } catch (err) { showToast("분석 중 오류가 발생했습니다."); }
@@ -473,6 +504,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                     el.setAttribute('name', data.name); el.setAttribute('category', data.category);
                     el.setAttribute('image-src', data.imageSrc); el.setAttribute('item-id', data.id);
                     el.setAttribute('color', data.color || '#ffffff');
+                    
+                    // 아이템 클릭 시 AI 스타일 추천 업데이트
+                    el.addEventListener('click', () => {
+                        updateAnalysisPanel({
+                            name: data.name,
+                            category: data.category,
+                            color: data.color || '#ffffff',
+                            confidence: 100 // 저장된 아이템은 100% 신뢰도로 표시
+                        });
+                        
+                        // 시각적 피드백: 업로드 영역에도 해당 이미지 표시
+                        if (dropZone) {
+                            dropZone.innerHTML = `<img src="${data.imageSrc}" style="max-height:100%; max-width:100%; object-fit:contain; border-radius:15px; animation: fadeIn 0.5s ease-out;">`;
+                        }
+                    });
+
                     gallery.appendChild(el);
                 });
             }

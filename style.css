@@ -205,6 +205,25 @@ nav {
     to { opacity: 1; transform: translateY(0); }
 }
 
+#mood-gallery {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.mood-img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 12px;
+    background: var(--warm-white);
+    transition: transform 0.3s ease;
+}
+
+.mood-img:hover {
+    transform: scale(1.05);
+}
+
 /* Toast Luxe */
 .toast {
     position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%) translateY(100px);
