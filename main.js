@@ -179,11 +179,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadItems();
     });
 
+    // --- AI Category Mapping (MobileNet Label -> App Category) ---
+    const CATEGORY_MAP = {
+        // Outer
+        'coat': 'Outer', 'jacket': 'Outer', 'trench coat': 'Outer', 'parka': 'Outer', 'windbreaker': 'Outer', 'cloak': 'Outer',
+        // Top
+        'jersey': 'Top', 't-shirt': 'Top', 'shirt': 'Top', 'sweater': 'Top', 'sweatshirt': 'Top', 'cardigan': 'Top', 'vest': 'Top',
+        // Bottom
+        'jean': 'Bottom', 'skirt': 'Bottom', 'short': 'Bottom', 'trouser': 'Bottom', 'pant': 'Bottom',
+        // Dress
+        'gown': 'Dress', 'dress': 'Dress',
+        // Shoes
+        'shoe': 'Shoes', 'sneaker': 'Shoes', 'sandal': 'Shoes', 'boot': 'Shoes', 'loafer': 'Shoes',
+        // Acc
+        'hat': 'Acc', 'tie': 'Acc', 'belt': 'Acc', 'bag': 'Acc', 'sunglass': 'Acc', 'watch': 'Acc'
+    };
+
+    const TRANSLATION_MAP = {
+        'jersey': '티셔츠/저지', 'shirt': '셔츠', 'jean': '청바지', 'skirt': '스커트', 'coat': '코트', 'jacket': '자켓',
+        'dress': '원피스', 'shoe': '신발', 'sneaker': '운동화', 'hat': '모자', 'bag': '가방', 'sweater': '스웨터'
+    };
+
     // --- Image Upload ---
     dropZone.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0]; if (!file) return;
-        dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-wand-sparkles fa-spin" style="font-size:40px; color:#E8B4A0;"></i><p style="margin-top:15px;">OPTIMIZING...</p></div>`;
+        dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-wand-sparkles fa-spin" style="font-size:40px; color:#E8B4A0;"></i><p style="margin-top:15px;">AI가 스타일 분석 중...</p></div>`;
         
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -192,9 +213,45 @@ document.addEventListener('DOMContentLoaded', async () => {
             img.onload = async () => {
                 optimizedBase64Image = await compressImage(img);
                 dropZone.innerHTML = `<img src="${optimizedBase64Image}" style="max-height:100%; max-width:100%; object-fit:contain; border-radius:15px;">`;
+                
                 if (net) {
                     const predictions = await net.classify(img);
-                    nameInput.value = predictions[0].className.split(',')[0].toUpperCase();
+                    const topResult = predictions[0];
+                    const label = topResult.className.toLowerCase().split(',')[0];
+                    const confidence = Math.round(topResult.probability * 100);
+
+                    // 1. 네이밍 자동 입력 (한글 변환 시도)
+                    const translatedName = TRANSLATION_MAP[label] || label.toUpperCase();
+                    nameInput.value = translatedName;
+
+                    // 2. 카테고리 자동 선택
+                    for (const [key, value] of Object.entries(CATEGORY_MAP)) {
+                        if (label.includes(key)) {
+                            categoryInput.value = value;
+                            break;
+                        }
+                    }
+
+                    // 3. Style Insight 패널 업데이트
+                    const analysisContent = document.getElementById('analysis-content');
+                    if (analysisContent) {
+                        analysisContent.innerHTML = `
+                            <div style="background:var(--cream); padding:20px; border-radius:16px; margin-top:10px;">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                                    <span style="font-size:12px; color:var(--stone); font-weight:700;">분석 결과</span>
+                                    <span style="font-size:12px; color:var(--blush); font-weight:800;">CONFIDENCE: ${confidence}%</span>
+                                </div>
+                                <div style="font-size:18px; font-weight:700; color:var(--deep); margin-bottom:4px;">${translatedName}</div>
+                                <div style="font-size:12px; color:var(--stone);">감지된 스타일: ${label}</div>
+                                <div style="margin-top:15px; padding-top:15px; border-top:1px solid rgba(0,0,0,0.05);">
+                                    <p style="font-size:12px; line-height:1.6; color:var(--stone);">
+                                        AI 분석 결과, 이 아이템은 <strong>${categoryInput.options[categoryInput.selectedIndex].text}</strong> 카테고리로 분류되었습니다. 
+                                        정보가 정확하지 않다면 직접 수정하실 수 있습니다.
+                                    </p>
+                                </div>
+                            </div>
+                        `;
+                    }
                 }
             };
         };
