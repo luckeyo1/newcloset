@@ -4,6 +4,7 @@
 A modern, AI-powered digital closet application that allows users to upload, categorize, and manage their clothing items. The app uses advanced computer vision APIs to perform deep analysis of fashion items, including type, color, and style detection.
 
 ## **2. Key Features**
+- **AI Clothing Extraction:** Advanced background and person removal using BodyPix and custom YCbCr skin detection to extract only the clothing from a photo.
 - **Advanced Fashion Analysis (API):** Integration with a specialized Fashion API (Clarifai/Hugging Face) to detect specific clothing details (e.g., sleeve length, neck type, material).
 - **Auto-Color Extraction:** Analyzes the uploaded image to extract the dominant color palette and suggest matching colors.
 - **Smart Categorization:** Automatically assigns categories and suggests descriptive names based on AI confidence.

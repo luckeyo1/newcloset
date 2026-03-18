@@ -90,21 +90,79 @@ document.addEventListener('DOMContentLoaded', async () => {
     const switchToSignup = document.getElementById('switch-to-signup');
     const googleLoginBtn = document.getElementById('google-login-btn');
 
-    const REMOVE_BG_API_KEY = '5Ayb2PWWmbR9L6WTUe8kebWG';
     const CLOSET_KEY = 'closet_v3';
     let net = null;
+    let bodyPixNet = null;
     let currentUser = null;
     let optimizedBase64Image = null;
 
     // AI Load
     const loadAI = async () => {
         try {
+            if (dropZone.querySelector('p')) dropZone.querySelector('p').textContent = 'AI 모델 로딩 중...';
             if (window.tf) await tf.ready();
+            
+            // Load MobileNet for classification
             net = await mobilenet.load();
+            
+            // Load BodyPix for background removal
+            bodyPixNet = await bodyPix.load({
+                architecture: 'MobileNetV1',
+                outputStride: 16,
+                multiplier: 0.75,
+                quantBytes: 2
+            });
+            
             if (dropZone.querySelector('p')) dropZone.querySelector('p').textContent = 'AI READY — UPLOAD IMAGE';
-        } catch (e) { console.warn('AI Load Error (Local):', e); }
+        } catch (e) { 
+            console.warn('AI Load Error (Local):', e); 
+            if (dropZone.querySelector('p')) dropZone.querySelector('p').textContent = 'AI 모델 로드 실패 (새로고침 권장)';
+        }
     };
     loadAI();
+
+    // --- Background Removal using BodyPix ---
+    const removeBackground = async (imgElement) => {
+        if (!bodyPixNet) return imgElement.src;
+        
+        try {
+            const segmentation = await bodyPixNet.segmentPerson(imgElement, {
+                flipHorizontal: false,
+                internalResolution: 'medium',
+                segmentationThreshold: 0.7
+            });
+
+            const canvas = document.createElement('canvas');
+            canvas.width = imgElement.width;
+            canvas.height = imgElement.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(imgElement, 0, 0);
+            
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const pixelData = imageData.data;
+            
+            let count = 0;
+            for (let i = 0; i < pixelData.length; i += 4) {
+                if (segmentation.data[i / 4] === 0) {
+                    pixelData[i + 3] = 0; // Set alpha to 0 (transparent)
+                } else {
+                    count++;
+                }
+            }
+            
+            // If no person detected, return original
+            if (count === 0) {
+                console.warn("No person detected by BodyPix, skipping background removal.");
+                return imgElement.src;
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+            return canvas.toDataURL('image/png');
+        } catch (e) {
+            console.error("BodyPix Error:", e);
+            return imgElement.src;
+        }
+    };
 
     const showToast = (msg) => {
         const t = document.createElement('div');
@@ -116,37 +174,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // --- Image Compression (Crucial for Firestore 1MB limit) ---
-    const compressImage = (imgElement) => {
+    const compressImage = (imgElement, format = 'image/png') => {
         return new Promise((resolve) => {
             const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 450; // Smaller size to ensure safety
+            const MAX_WIDTH = 450;
             let width = imgElement.width;
             let height = imgElement.height;
             if (width > MAX_WIDTH) { height = (MAX_WIDTH / width) * height; width = MAX_WIDTH; }
             canvas.width = width; canvas.height = height;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(imgElement, 0, 0, width, height);
-            // Higher compression to stay under 1MB even for complex images
-            resolve(canvas.toDataURL('image/jpeg', 0.5)); 
+            resolve(canvas.toDataURL(format, 0.7)); 
         });
     };
 
     // --- Google Login ---
-    googleLoginBtn?.addEventListener('click', async () => {
+    const handleGoogleLogin = async () => {
         const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
         googleLoginBtn.disabled = true;
         googleLoginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CONNECTING...';
         try {
-            const result = await auth.signInWithPopup(provider);
-            if (result.user) {
-                showToast('WELCOME, ' + (result.user.displayName || 'USER'));
-                authModal.style.display = 'none';
-            }
+            await auth.signInWithPopup(provider);
+            authModal.style.display = 'none';
         } catch (error) {
-            if (error.code === 'auth/popup-blocked') await auth.signInWithRedirect(provider);
-            else { showToast('AUTH ERROR: ' + error.message); googleLoginBtn.disabled = false; }
+            console.warn("Popup blocked or closed, trying redirect:", error);
+            if (error.code === 'auth/popup-blocked') {
+                await auth.signInWithRedirect(provider);
+            } else {
+                showToast('AUTH ERROR: ' + error.message);
+                googleLoginBtn.disabled = false;
+                googleLoginBtn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18"> Continue with Google';
+            }
         }
-    });
+    };
+
+    googleLoginBtn?.addEventListener('click', handleGoogleLogin);
 
     auth.getRedirectResult().then((result) => {
         if (result && result.user) { showToast('WELCOME BACK'); authModal.style.display = 'none'; }
@@ -174,24 +237,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     auth.onAuthStateChanged(user => {
         currentUser = user;
         authBtn.textContent = user ? 'LOGOUT' : 'LOGIN';
+        if (googleLoginBtn) {
+            googleLoginBtn.disabled = false;
+            googleLoginBtn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18"> Continue with Google';
+        }
         const userDisplay = document.getElementById('user-info');
         if (userDisplay) userDisplay.textContent = user ? (user.displayName || user.email.split('@')[0]).toUpperCase() : '';
         loadItems();
     });
 
-    // --- AI Category Mapping (MobileNet Label -> App Category) ---
+    // --- AI Category Mapping ---
     const CATEGORY_MAP = {
-        // Outer
         'coat': 'Outer', 'jacket': 'Outer', 'trench coat': 'Outer', 'parka': 'Outer', 'windbreaker': 'Outer', 'cloak': 'Outer',
-        // Top
         'jersey': 'Top', 't-shirt': 'Top', 'shirt': 'Top', 'sweater': 'Top', 'sweatshirt': 'Top', 'cardigan': 'Top', 'vest': 'Top',
-        // Bottom
         'jean': 'Bottom', 'skirt': 'Bottom', 'short': 'Bottom', 'trouser': 'Bottom', 'pant': 'Bottom',
-        // Dress
         'gown': 'Dress', 'dress': 'Dress',
-        // Shoes
         'shoe': 'Shoes', 'sneaker': 'Shoes', 'sandal': 'Shoes', 'boot': 'Shoes', 'loafer': 'Shoes',
-        // Acc
         'hat': 'Acc', 'tie': 'Acc', 'belt': 'Acc', 'bag': 'Acc', 'sunglass': 'Acc', 'watch': 'Acc'
     };
 
@@ -204,54 +265,73 @@ document.addEventListener('DOMContentLoaded', async () => {
     dropZone.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0]; if (!file) return;
-        dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-wand-sparkles fa-spin" style="font-size:40px; color:#E8B4A0;"></i><p style="margin-top:15px;">AI가 스타일 분석 중...</p></div>`;
+        dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-wand-magic-sparkles fa-spin" style="font-size:40px; color:#E8B4A0;"></i><p style="margin-top:15px;">AI가 배경 제거 및 스타일 분석 중...</p></div>`;
         
         const reader = new FileReader();
         reader.onloadend = () => {
             const img = new Image();
             img.src = reader.result;
             img.onload = async () => {
-                optimizedBase64Image = await compressImage(img);
-                dropZone.innerHTML = `<img src="${optimizedBase64Image}" style="max-height:100%; max-width:100%; object-fit:contain; border-radius:15px;">`;
-                
-                if (net) {
-                    const predictions = await net.classify(img);
-                    const topResult = predictions[0];
-                    const label = topResult.className.toLowerCase().split(',')[0];
-                    const confidence = Math.round(topResult.probability * 100);
-
-                    // 1. 네이밍 자동 입력 (한글 변환 시도)
-                    const translatedName = TRANSLATION_MAP[label] || label.toUpperCase();
-                    nameInput.value = translatedName;
-
-                    // 2. 카테고리 자동 선택
-                    for (const [key, value] of Object.entries(CATEGORY_MAP)) {
-                        if (label.includes(key)) {
-                            categoryInput.value = value;
-                            break;
+                try {
+                    let processedImageSrc = reader.result;
+                    let bgRemoved = false;
+                    if (bodyPixNet) {
+                        const removed = await removeBackground(img);
+                        if (removed !== reader.result) {
+                            processedImageSrc = removed;
+                            bgRemoved = true;
                         }
                     }
 
-                    // 3. Style Insight 패널 업데이트
-                    const analysisContent = document.getElementById('analysis-content');
-                    if (analysisContent) {
-                        analysisContent.innerHTML = `
-                            <div style="background:var(--cream); padding:20px; border-radius:16px; margin-top:10px;">
-                                <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
-                                    <span style="font-size:12px; color:var(--stone); font-weight:700;">분석 결과</span>
-                                    <span style="font-size:12px; color:var(--blush); font-weight:800;">CONFIDENCE: ${confidence}%</span>
-                                </div>
-                                <div style="font-size:18px; font-weight:700; color:var(--deep); margin-bottom:4px;">${translatedName}</div>
-                                <div style="font-size:12px; color:var(--stone);">감지된 스타일: ${label}</div>
-                                <div style="margin-top:15px; padding-top:15px; border-top:1px solid rgba(0,0,0,0.05);">
-                                    <p style="font-size:12px; line-height:1.6; color:var(--stone);">
-                                        AI 분석 결과, 이 아이템은 <strong>${categoryInput.options[categoryInput.selectedIndex].text}</strong> 카테고리로 분류되었습니다. 
-                                        정보가 정확하지 않다면 직접 수정하실 수 있습니다.
-                                    </p>
-                                </div>
-                            </div>
-                        `;
-                    }
+                    const processedImg = new Image();
+                    processedImg.src = processedImageSrc;
+                    processedImg.onload = async () => {
+                        optimizedBase64Image = await compressImage(processedImg, 'image/png');
+                        dropZone.innerHTML = `<img src="${optimizedBase64Image}" style="max-height:100%; max-width:100%; object-fit:contain; border-radius:15px;">`;
+                        
+                        if (net) {
+                            const predictions = await net.classify(processedImg);
+                            const topResult = predictions[0];
+                            const label = topResult.className.toLowerCase().split(',')[0];
+                            const confidence = Math.round(topResult.probability * 100);
+
+                            const translatedName = TRANSLATION_MAP[label] || label.toUpperCase();
+                            nameInput.value = translatedName;
+
+                            for (const [key, value] of Object.entries(CATEGORY_MAP)) {
+                                if (label.includes(key)) {
+                                    categoryInput.value = value;
+                                    break;
+                                }
+                            }
+
+                            const analysisContent = document.getElementById('analysis-content');
+                            if (analysisContent) {
+                                analysisContent.innerHTML = `
+                                    <div style="background:var(--cream); padding:20px; border-radius:16px; margin-top:10px;">
+                                        <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                                            <span style="font-size:12px; color:var(--stone); font-weight:700;">분석 결과</span>
+                                            <span style="font-size:12px; color:var(--blush); font-weight:800;">AI 신뢰도: ${confidence}%</span>
+                                        </div>
+                                        <div style="font-size:18px; font-weight:700; color:var(--deep); margin-bottom:4px;">${translatedName}</div>
+                                        <div style="font-size:12px; color:var(--stone); margin-bottom:10px;">감지된 스타일: ${label}</div>
+                                        <div style="padding:10px; background:white; border-radius:10px; font-size:11px; color:var(--sage); border:1px solid rgba(155,173,154,0.2);">
+                                            <i class="fa-solid fa-check-circle"></i> ${bgRemoved ? '배경이 성공적으로 제거되었습니다.' : '이미지가 분석되었습니다.'}
+                                        </div>
+                                        <div style="margin-top:15px; padding-top:15px; border-top:1px solid rgba(0,0,0,0.05);">
+                                            <p style="font-size:12px; line-height:1.6; color:var(--stone);">
+                                                이 아이템은 <strong>${categoryInput.options[categoryInput.selectedIndex].text}</strong>(으)로 분류되었습니다.
+                                            </p>
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                        }
+                    };
+                } catch (err) {
+                    console.error("AI Processing Error:", err);
+                    showToast("분석 중 오류가 발생했습니다.");
+                    dropZone.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i><p>다시 시도해주세요</p>`;
                 }
             };
         };
@@ -276,8 +356,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             submitBtn.textContent = 'SAVING...';
             
             if (currentUser) {
-                // To avoid "Size limit exceeded" error, we check length of base64 string
-                // 1MB is about 1,000,000 characters in Base64
                 if (optimizedBase64Image.length > 1000000) {
                     throw new Error("이미지 용량이 너무 큽니다. 더 작은 사진을 사용해주세요.");
                 }
@@ -292,7 +370,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             form.reset();
             optimizedBase64Image = null;
             dropZone.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><p>READY TO ANALYZE</p>';
-            await loadItems(); // Refresh gallery
+            const analysisContent = document.getElementById('analysis-content');
+            if (analysisContent) analysisContent.innerHTML = '<p style="color:var(--stone); font-size:14px;">이미지를 업로드하면 AI가 실루엣과 카테고리를 분석합니다.</p>';
+            await loadItems();
         } catch (err) {
             console.error('Save Error:', err);
             alert('저장에 실패했습니다: ' + err.message);
@@ -331,9 +411,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if (countEl) countEl.textContent = items.length;
             
-            // Dynamic Progress Tracking (Marketing Psychology)
             if (progressBar && progressPercent) {
-                // Assume 50 items as a milestone for "Complete Digital Wardrobe"
                 const percentage = Math.min(Math.round((items.length / 50) * 100), 100);
                 progressBar.style.width = percentage + '%';
                 progressPercent.textContent = percentage + '%';
@@ -344,8 +422,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    authBtn.addEventListener('click', () => {
-        if (currentUser) { auth.signOut(); currentUser = null; loadItems(); }
+    authBtn.addEventListener('click', async () => {
+        if (currentUser) { 
+            if (confirm('로그아웃 하시겠습니까?')) {
+                await auth.signOut(); 
+                location.reload(); 
+            }
+        }
         else authModal.style.display = 'flex';
     });
     
