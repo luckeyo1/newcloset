@@ -75,7 +75,7 @@
 
         <!-- Right: Insight & Matching -->
         <aside class="side-panel">
-            <div class="glass-card analysis-panel" id="ai-analysis-panel" style="position:sticky; top:100px;">
+            <div class="glass-card analysis-panel" id="ai-analysis-panel" style="position:sticky; top:100px; max-height: calc(100vh - 140px); overflow-y: auto;">
                 <div class="progress-container" style="margin-bottom:30px; padding-bottom:20px; border-bottom:1px solid var(--border-soft);">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                         <h4 class="serif" style="font-size:16px;">옷장 디지털화</h4>
@@ -84,24 +84,37 @@
                     <div style="width:100%; height:6px; background:var(--cream); border-radius:100px; overflow:hidden;">
                         <div id="progress-bar" style="width:24%; height:100%; background:var(--blush); transition:width 1s ease;"></div>
                     </div>
-                    <p style="font-size:11px; color:var(--stone); margin-top:8px;">100% 달성 시 AI 스타일 분석이 더 정교해집니다!</p>
                 </div>
 
-                <h3 class="serif" style="font-size:24px;">Style Insight</h3>
-                <div id="analysis-content" class="analysis-content">
-                    <p style="color:var(--stone); font-size:14px;">이미지를 업로드하면 AI가 실루엣과 카테고리를 분석합니다.</p>
-                </div>
+                <h3 class="serif" style="font-size:24px; margin-bottom:20px;">AI Style Insight</h3>
                 
-                <div id="smart-coord-container" style="margin-top:40px; padding-top:30px; border-top:1px solid var(--border-soft);">
-                    <h4 class="serif" style="font-size:20px; margin-bottom:15px;">Smart Match</h4>
-                    <div id="smart-coord-grid">
-                        <p style="font-size:12px; color:var(--stone);">더 많은 아이템을 추가하여 AI 조합 제안을 활성화하세요.</p>
+                <div id="analysis-content" class="analysis-content">
+                    <p style="color:var(--stone); font-size:14px;">이미지를 업로드하면 AI 스타일리스트가 맞춤 코디와 가이드를 생성합니다.</p>
+                </div>
+
+                <!-- 추가될 고도화 섹션들 -->
+                <div id="ai-styling-sections" style="display:none;">
+                    <div class="insight-section" style="margin-top:30px;">
+                        <h4 class="serif" style="font-size:18px; margin-bottom:15px; display:flex; align-items:center; gap:8px;">
+                            <i class="fa-solid fa-wand-magic-sparkles" style="color:var(--gold);"></i> 맞춤형 코디 추천
+                        </h4>
+                        <div id="coordination-list" style="display:grid; gap:10px;"></div>
+                    </div>
+
+                    <div class="insight-section" style="margin-top:30px; padding:20px; background:rgba(155,173,154,0.1); border-radius:16px;">
+                        <h4 class="serif" style="font-size:18px; margin-bottom:10px;">Styling Guide</h4>
+                        <p id="styling-guide-text" style="font-size:13px; line-height:1.7; color:var(--deep);"></p>
+                    </div>
+
+                    <div class="insight-section" style="margin-top:30px;">
+                        <h4 class="serif" style="font-size:18px; margin-bottom:15px;">Mood Gallery</h4>
+                        <div id="mood-gallery" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;"></div>
                     </div>
                 </div>
-
+                
                 <div class="trust-signals" style="margin-top:40px; padding:15px; background:rgba(155,173,154,0.05); border-radius:16px; border:1px solid rgba(155,173,154,0.1);">
                     <p style="font-size:11px; color:var(--sage); display:flex; align-items:center; gap:8px; font-weight:600;">
-                        <i class="fa-solid fa-shield-halved"></i> 모든 데이터는 안전하게 암호화되어 보호됩니다.
+                        <i class="fa-solid fa-shield-halved"></i> AI 분석 데이터는 개인화된 추천에만 사용됩니다.
                     </p>
                 </div>
             </div>
