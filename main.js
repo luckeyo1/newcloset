@@ -416,19 +416,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     dropZone.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0]; if (!file) return;
-        dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-wand-magic-sparkles fa-spin" style="font-size:40px; color:#E8B4A0;"></i><p style="margin-top:15px;">AI가 배경 제거 및 스타일 분석 중...</p></div>`;
+        dropZone.innerHTML = `<div style="text-align:center;"><i class="fa-solid fa-wand-magic-sparkles fa-spin" style="font-size:40px; color:#E8B4A0;"></i><p style="margin-top:15px;">AI가 스타일 분석 중...</p></div>`;
         const reader = new FileReader();
         reader.onloadend = () => {
             const img = new Image();
             img.src = reader.result;
             img.onload = async () => {
                 try {
-                    let processedImageSrc = reader.result;
-                    let bgRemoved = false;
-                    if (bodyPixNet) {
-                        const removed = await removeBackground(img);
-                        if (removed !== reader.result) { processedImageSrc = removed; bgRemoved = true; }
-                    }
+                    // 배경 제거 로직 비활성화: 원본 이미지 바로 사용
+                    const processedImageSrc = reader.result;
+                    
                     const processedImg = new Image();
                     processedImg.src = processedImageSrc;
                     processedImg.onload = async () => {
@@ -463,7 +460,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                             });
                         }
                     };
-                } catch (err) { showToast("분석 중 오류가 발생했습니다."); }
+                } catch (err) { 
+                    console.error(err);
+                    showToast("분석 중 오류가 발생했습니다."); 
+                }
             };
         };
         reader.readAsDataURL(file);

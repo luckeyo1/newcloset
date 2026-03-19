@@ -4,16 +4,16 @@
 A modern, AI-powered digital closet application that allows users to upload, categorize, and manage their clothing items. The app uses advanced computer vision APIs to perform deep analysis of fashion items, including type, color, and style detection.
 
 ## **2. Key Features**
-- **AI Clothing Extraction:** Advanced background and person removal using BodyPix and custom YCbCr skin detection to extract only the clothing from a photo.
-- **Advanced Fashion Analysis (API):** Integration with a specialized Fashion API (Clarifai/Hugging Face) to detect specific clothing details (e.g., sleeve length, neck type, material).
+- **AI Fashion Analysis:** Integration with MobileNet for basic categorization and descriptive naming based on AI confidence.
 - **Auto-Color Extraction:** Analyzes the uploaded image to extract the dominant color palette and suggest matching colors.
-- **Smart Categorization:** Automatically assigns categories and suggests descriptive names based on AI confidence.
+- **Smart Categorization:** Automatically assigns categories and suggests descriptive names.
 - **AI Smart Coordination:** Automatically suggests 3 matching items (e.g., Slacks, Chelsea Boots) and provides a detailed styling guide with AI-generated reasoning for each recommendation based on the detected category.
 - **Premium AI Insights:** Features a sophisticated analysis panel that displays color coordination tips, confidence levels, and interactive styling cards with micro-interactions.
 - **Digital Wardrobe Management:** Save items to local storage with names, categories, and AI-generated metadata.
 - **Premium UI/UX:** High-end aesthetic with glassmorphism, smooth micro-interactions, and responsive container queries.
 - **Dark/Light Mode:** Seamless theme switching with persistent memory.
 - **Web Components:** Encapsulated UI elements for a scalable architecture.
+- **Disabled Features:** AI background removal (BodyPix) has been disabled to preserve original image quality and improve processing speed.
 
 ## **3. Technology Stack**
 - **Frontend:** HTML5, CSS3 (Modern Baseline: :has(), Container Queries, OKLCH), Vanilla JS.
