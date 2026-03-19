@@ -29,10 +29,11 @@ try {
 class ClosetItem extends HTMLElement {
     constructor() { super(); this.attachShadow({ mode: 'open' }); }
     connectedCallback() {
-        const imageSrc = this.getAttribute('image-src');
-        const name = this.getAttribute('name');
-        const category = this.getAttribute('category');
+        const imageSrc = this.getAttribute('image-src') || '';
+        const name = this.getAttribute('name') || 'Unnamed Item';
+        const category = this.getAttribute('category') || 'Item';
         const color = this.getAttribute('color') || '#ffffff';
+        
         this.shadowRoot.innerHTML = `
             <style>
                 :host { display: block; animation: slideUp 0.4s ease-out; }
@@ -41,14 +42,24 @@ class ClosetItem extends HTMLElement {
                     background: #fff; border-radius: 24px; padding: 12px;
                     transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
                     box-shadow: 0 10px 30px rgba(0,0,0,0.02); border: 1px solid #f0f0f0;
-                    position: relative;
+                    position: relative; cursor: pointer;
                 }
                 .card:hover { transform: translateY(-5px); border-color: #E8B4A0; box-shadow: 0 20px 50px rgba(0,0,0,0.08); }
                 .img-box {
                     width: 100%; aspect-ratio: 1; background: #FAF7F2;
                     border-radius: 18px; overflow: hidden; display: flex; align-items: center; justify-content: center;
+                    position: relative;
                 }
-                img { max-width: 85%; max-height: 85%; object-fit: contain; filter: drop-shadow(0 10px 15px rgba(0,0,0,0.05)); }
+                /* Fallback emoji styling */
+                .img-box::before {
+                    content: '✨'; font-size: 40px; position: absolute; opacity: 0.1;
+                }
+                img { 
+                    width: 100%; height: 100%; object-fit: contain; 
+                    filter: drop-shadow(0 10px 15px rgba(0,0,0,0.05)); 
+                    transition: 0.3s opacity;
+                    position: relative; z-index: 1;
+                }
                 .info { padding: 12px 4px; }
                 .cat { font-size: 10px; font-weight: 800; color: #8C8378; text-transform: uppercase; letter-spacing: 1.5px; }
                 .name { font-size: 14px; font-weight: 700; color: #1C1C1E; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -63,7 +74,9 @@ class ClosetItem extends HTMLElement {
             </style>
             <div class="card">
                 <div class="color-tag" title="Detected Dominant Color"></div>
-                <div class="img-box"><img src="${imageSrc}"></div>
+                <div class="img-box">
+                    <img src="${imageSrc}" onerror="this.style.opacity='0'; this.parentElement.style.background='#F5F0E8';">
+                </div>
                 <div class="info">
                     <div class="cat">${category}</div>
                     <div class="name">${name}</div>
@@ -556,4 +569,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             loadItems();
         } catch (err) { alert('삭제 실패: ' + err.message); }
     });
+
+    // --- Theme Toggle Logic ---
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+            const isDark = document.body.classList.toggle('light-mode');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            showToast(isDark ? 'DARK MODE ON' : 'LIGHT MODE ON');
+        });
+        // Initial Theme
+        if (localStorage.getItem('theme') === 'dark') document.body.classList.add('light-mode');
+    }
 });
